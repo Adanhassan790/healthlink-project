@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Find Doctors - HealthLink{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Page Header -->
+    <div class="row mb-5">
+        <div class="col-12 text-center">
+            <h1>Find Your Specialist</h1>
+            <p class="lead">Connect with verified healthcare professionals</p>
+        </div>
+    </div>
+
+    <!-- Search and Filter Card -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <input type="text" 
+                           name="search" 
+                           class="form-control form-control-lg" 
+                           placeholder="Search doctors by name or specialty..." 
+                           value="{{ search_query }}"
+                           id="searchInput">
+                </div>
+                <div class="col-md-4">
+                    <select name="specialty" class="form-select form-select-lg" id="specialtySelect">
+                        <option value="">All Specialties</option>
+                        {% for specialty in specialties %}
+                        <option value="{{ specialty.name }}" {% if selected_specialty == specialty.name %}selected{% endif %}>
+                            {{ specialty.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-primary btn-lg w-100" onclick="applyFilters()">
+                        Search
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Doctors Grid -->
+    <div class="doctor-grid">
+        {% for doctor in doctors %}
+        <div class="doctor-card">
+            <div class="doctor-card-header text-center">
+                <div class="doctor-avatar">
+                    👨‍⚕️
+                </div>
+                <h4 class="mb-1">Dr. {{ doctor.user.get_full_name }}</h4>
+                <div class="doctor-specialty">{{ doctor.specialization }}</div>
+                <div class="doctor-experience">{{ doctor.years_of_experience }}+ years experience</div>
+            </div>
+            
+            <div class="doctor-card-body">
+                <p class="text-tertiary mb-3">{{ doctor.bio|default:"Experienced healthcare professional dedicated to patient care."|truncatewords:20 }}</p>
+                
+                <div class="doctor-info mb-3">
+                    <div class="info-item">
+                        <strong>Consultation Fee:</strong> ${{ doctor.consultation_fee }}
+                    </div>
+                    <div class="info-item">
+                        <strong>Availability:</strong> Online
+                    </div>
+                </div>
+                
+                <div class="doctor-actions">
+                    <a href="{% url 'appointments:doctor_detail' doctor.user.id %}" class="btn btn-outline-primary btn-sm me-2">
+                        View Profile
+                    </a>
+                    <a href="{% url 'appointments:book_appointment' doctor.user.id %}" class="btn btn-primary btn-sm">
+                        Book Appointment
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="card text-center py-5">
+                <div class="card-body">
+                    <h4>No doctors found</h4>
+                    <p class="text-tertiary">No doctors match your search criteria. Try adjusting your filters.</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function applyFilters() {
+    const searchValue = document.getElementById('searchInput').value;
+    const specialtyValue = document.getElementById('specialtySelect').value;
+    
+    const params = new URLSearchParams();
+    if (searchValue) params.append('search', searchValue);
+    if (specialtyValue) params.append('specialty', specialtyValue);
+    
+    window.location.href = '?' + params.toString();
+}
+
+// Auto-submit when Enter is pressed in search
+document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        applyFilters();
+    }
+});
+</script>
+{% endblock %}

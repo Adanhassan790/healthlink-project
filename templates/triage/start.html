@@ -1,0 +1,368 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}AI Symptom Checker - HealthLink{% endblock %}
+
+{% block content %}
+<style>
+    .triage-container {
+        min-height: 80vh;
+        padding: 2rem 0;
+        background: #f8fafc;
+    }
+    
+    .hero-section {
+        text-align: center;
+        margin-bottom: 3rem;
+        padding: 0 1rem;
+    }
+    
+    .hero-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: #10b981;
+    }
+    
+    .hero-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 1rem;
+    }
+    
+    .hero-subtitle {
+        font-size: 1.1rem;
+        color: #d8dce2;
+        max-width: 600px;
+        margin: 0 auto;
+        line-height: 1.6;
+    }
+    
+    .triage-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        border: 1px solid #e5e7eb;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+    
+    .card-header {
+        background: #10b981;
+        color: white;
+        padding: 1.5rem 2rem;
+        border: none;
+    }
+    
+    .card-header h4 {
+        margin: 0;
+        font-weight: 600;
+        font-size: 1.25rem;
+    }
+    
+    .card-body {
+        padding: 2rem;
+    }
+    
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .symptoms-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .symptom-item {
+        background: #f9fafb;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    
+    .symptom-item:hover {
+        border-color: #10b981;
+        background: #f0fdf9;
+    }
+    
+    .symptom-item.selected {
+        border-color: #10b981;
+        background: #ecfdf5;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
+    }
+    
+    .symptom-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin: 0;
+    }
+    
+    .symptom-checkbox input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        border: 2px solid #d1d5db;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .symptom-checkbox input[type="checkbox"]:checked {
+        background-color: #10b981;
+        border-color: #10b981;
+    }
+    
+    .symptom-label {
+        font-weight: 500;
+        color: #374151;
+        cursor: pointer;
+        flex: 1;
+    }
+    
+    .notes-section {
+        margin-top: 2.5rem;
+    }
+    
+    .notes-textarea {
+        width: 100%;
+        padding: 1.25rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        font-size: 1rem;
+        resize: vertical;
+        min-height: 140px;
+        transition: all 0.2s ease;
+        background: #f9fafb;
+        font-family: inherit;
+        line-height: 1.5;
+    }
+    
+    .notes-textarea:focus {
+        outline: none;
+        border-color: #10b981;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+    
+    .analyze-btn {
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 1.25rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        width: 100%;
+        margin-top: 2rem;
+    }
+    
+    .analyze-btn:hover {
+        background: #059669;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+    }
+    
+    .selected-count {
+        background: #10b981;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    .chat-alternative {
+        text-align: center;
+        padding: 2rem;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+    }
+    
+    .chat-link {
+        color: #10b981;
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.2s ease;
+    }
+    
+    .chat-link:hover {
+        color: #059669;
+        text-decoration: underline;
+    }
+    
+    .placeholder-text {
+        color: #9ca3af;
+        font-style: italic;
+        margin-top: 0.5rem;
+    }
+    
+    @media (max-width: 768px) {
+        .hero-title {
+            font-size: 2rem;
+        }
+        
+        .symptoms-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+    }
+</style>
+
+<div class="triage-container">
+    <div class="container">
+        <div class="hero-section">
+            <div class="hero-icon">🩺</div>
+            <h1 class="hero-title">AI Symptom Checker</h1>
+            <p class="hero-subtitle">
+                Describe your symptoms and our advanced AI will analyze them to recommend 
+                the most appropriate medical specialist for your condition.
+            </p>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="triage-card">
+                    <div class="card-header">
+                        <h4>Describe Your Symptoms</h4>
+                    </div>
+                    <div class="card-body">
+                        <form method="post">
+                            {% csrf_token %}
+                            
+                            <!-- Symptoms Section -->
+                            <div class="symptoms-section">
+                                <div class="section-title">
+                                    <span>Select Your Symptoms</span>
+                                    <span class="selected-count" id="selectedCount">0 selected</span>
+                                </div>
+                                
+                                <div class="symptoms-grid">
+                                    <!-- Common symptoms - you can customize this list -->
+                                    <div class="symptom-item" onclick="toggleSymptom(this)">
+                                        <label class="symptom-checkbox">
+                                            <input type="checkbox" name="symptoms" value="headache">
+                                            <span class="symptom-label">Headache</span>
+                                        </label>
+                                    </div>
+                                    <div class="symptom-item" onclick="toggleSymptom(this)">
+                                        <label class="symptom-checkbox">
+                                            <input type="checkbox" name="symptoms" value="fever">
+                                            <span class="symptom-label">Fever</span>
+                                        </label>
+                                    </div>
+                                    <div class="symptom-item" onclick="toggleSymptom(this)">
+                                        <label class="symptom-checkbox">
+                                            <input type="checkbox" name="symptoms" value="cough">
+                                            <span class="symptom-label">Cough</span>
+                                        </label>
+                                    </div>
+                                    <div class="symptom-item" onclick="toggleSymptom(this)">
+                                        <label class="symptom-checkbox">
+                                            <input type="checkbox" name="symptoms" value="fatigue">
+                                            <span class="symptom-label">Fatigue</span>
+                                        </label>
+                                    </div>
+                                    <div class="symptom-item" onclick="toggleSymptom(this)">
+                                        <label class="symptom-checkbox">
+                                            <input type="checkbox" name="symptoms" value="nausea">
+                                            <span class="symptom-label">Nausea</span>
+                                        </label>
+                                    </div>
+                                    <div class="symptom-item" onclick="toggleSymptom(this)">
+                                        <label class="symptom-checkbox">
+                                            <input type="checkbox" name="symptoms" value="chest_pain">
+                                            <span class="symptom-label">Chest Pain</span>
+                                        </label>
+                                    </div>
+                                    <div class="symptom-item" onclick="toggleSymptom(this)">
+                                        <label class="symptom-checkbox">
+                                            <input type="checkbox" name="symptoms" value="shortness_of_breath">
+                                            <span class="symptom-label">Shortness of Breath</span>
+                                        </label>
+                                    </div>
+                                    <div class="symptom-item" onclick="toggleSymptom(this)">
+                                        <label class="symptom-checkbox">
+                                            <input type="checkbox" name="symptoms" value="joint_pain">
+                                            <span class="symptom-label">Joint Pain</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Additional Details Section -->
+                            <div class="notes-section">
+                                <div class="section-title">Additional Details</div>
+                                <textarea 
+                                    name="additional_notes" 
+                                    class="notes-textarea" 
+                                    placeholder="Please provide any additional details about your symptoms, such as:
+• When did they start?
+• How severe are they?
+• Any triggers or patterns you've noticed?
+• Other relevant health information..."
+                                ></textarea>
+                                <div class="placeholder-text">
+                                    The more details you provide, the better our AI can assist you.
+                                </div>
+                            </div>
+
+                            <button type="submit" class="analyze-btn">
+                                Analyze Symptoms & Find Specialist
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="chat-alternative">
+                    <p class="text-muted mb-2">Prefer a conversational approach?</p>
+                    <a href="{% url 'triage:triage_chat' %}" class="chat-link">
+                        Try our Interactive AI Assistant
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleSymptom(element) {
+        const checkbox = element.querySelector('input[type="checkbox"]');
+        checkbox.checked = !checkbox.checked;
+        element.classList.toggle('selected', checkbox.checked);
+        updateSelectedCount();
+    }
+    
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('input[type="checkbox"]:checked').length;
+        document.getElementById('selectedCount').textContent = `${selected} selected`;
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+        
+        // Add click handlers
+        document.querySelectorAll('.symptom-item').forEach(item => {
+            item.addEventListener('click', function() {
+                toggleSymptom(this);
+            });
+        });
+    });
+</script>
+{% endblock %}

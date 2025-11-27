@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}HealthLink - AI-Powered Telemedicine{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <h1>Healthcare Made Simple & Accessible</h1>
+        <p class="lead">Connect with top medical specialists instantly. Our AI triage system ensures you're matched with the right doctor for your needs, every time.</p>
+        
+        {% if not user.is_authenticated %}
+        <div class="hero-buttons">
+            <a href="{% url 'patient_register' %}" class="btn btn-primary btn-lg me-3">Get Started</a>
+            <a href="{% url 'doctor_register' %}" class="btn btn-outline-light btn-lg">Join as Doctor</a>
+        </div>
+        {% else %}
+        <div class="hero-buttons">
+            <a href="{% url 'dashboard' %}" class="btn btn-light btn-lg">Go to Dashboard</a>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- How It Works Section -->
+<section class="how-it-works">
+    <div class="container">
+        <div class="section-title">
+            <h2>How It Works</h2>
+            <p class="lead">Getting quality healthcare has never been easier. Follow these simple steps to connect with a specialist.</p>
+        </div>
+        
+        <div class="step-cards">
+            <div class="step-card">
+                <div class="step-number">01</div>
+                <h3>Describe Your Symptoms</h3>
+                <p>Chat with our AI to describe what you're experiencing. It's quick, confidential, and intelligent.</p>
+            </div>
+            
+            <div class="step-card">
+                <div class="step-number">02</div>
+                <h3>Get Matched</h3>
+                <p>Our AI analyzes your symptoms and recommends the best specialist for your specific condition.</p>
+            </div>
+            
+            <div class="step-card">
+                <div class="step-number">03</div>
+                <h3>Consult Online</h3>
+                <p>Connect via secure video call with your matched doctor at a time that works for you.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="features-section">
+    <div class="container">
+        <div class="section-title">
+            <h2>The Future of Digital Healthcare</h2>
+            <p class="lead">Cutting-edge technology meets compassionate care to deliver exceptional patient experiences.</p>
+        </div>
+        
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🤖</div>
+                <h3>AI-Powered Triage</h3>
+                <p>Our intelligent system analyzes your symptoms and recommends the most suitable medical specialist for your needs.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3>Secure & Private</h3>
+                <p>End-to-end encryption ensures your medical information remains confidential and protected at all times.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>Instant Consultations</h3>
+                <p>Connect with qualified doctors within minutes. No more waiting rooms or long appointment delays.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">✅</div>
+                <h3>Verified Specialists</h3>
+                <p>All our healthcare professionals are thoroughly vetted, licensed, and experienced in their specialties.</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

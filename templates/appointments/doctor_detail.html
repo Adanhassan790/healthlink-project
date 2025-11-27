@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dr. {{ doctor.user.get_full_name }} - HealthLink{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <!-- Doctor Profile -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-start mb-4">
+                        <div class="doctor-avatar-large me-4">
+                            👨‍⚕️
+                        </div>
+                        <div>
+                            <h1>Dr. {{ doctor.user.get_full_name }}</h1>
+                            <h4 class="text-primary mb-2">{{ doctor.specialization }}</h4>
+                            <p class="text-tertiary mb-1">
+                                <strong>{{ doctor.years_of_experience }}+ years of experience</strong>
+                            </p>
+                            <p class="text-tertiary">License: {{ doctor.license_number }}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- About Section -->
+                    <div class="mb-4">
+                        <h3>About</h3>
+                        <p>{{ doctor.bio|default:"Dr. "|add:doctor.user.get_full_name|add:" is a dedicated healthcare professional committed to providing exceptional patient care through innovative telemedicine solutions." }}</p>
+                    </div>
+                    
+                    <!-- Specializations -->
+                    <div class="mb-4">
+                        <h3>Specialization & Expertise</h3>
+                        <div class="specialization-tags">
+                            <span class="badge bg-primary me-2 mb-2">{{ doctor.specialization }}</span>
+                            <!-- Add more specialties as needed -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Booking Sidebar -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Book Consultation</h5>
+                </div>
+                <div class="card-body">
+                    <div class="pricing-info mb-3">
+                        <h4 class="text-primary">Ksh {{ doctor.consultation_fee }}</h4>
+                        <p class="text-tertiary">Per consultation</p>
+                    </div>
+                    
+                    <div class="features-list mb-4">
+                        <div class="feature-item mb-2">
+                            <span class="text-success">✓</span> Secure video consultation
+                        </div>
+                        <div class="feature-item mb-2">
+                            <span class="text-success">✓</span> Digital prescription
+                        </span>
+                        </div>
+                        <div class="feature-item mb-2">
+                            <span class="text-success">✓</span> Follow-up care plan
+                        </div>
+                        <div class="feature-item">
+                            <span class="text-success">✓</span> Medical records access
+                        </div>
+                    </div>
+                    
+                    <a href="{% url 'appointments:book_appointment' doctor.user.id %}" class="btn btn-primary w-100 btn-lg">
+                        Book Appointment
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Contact Info -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Contact Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="contact-item mb-2">
+                        <strong>Email:</strong> {{ doctor.user.email }}
+                    </div>
+                    <div class="contact-item">
+                        <strong>Phone:</strong> {{ doctor.user.phone_number|default:"Available after booking" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

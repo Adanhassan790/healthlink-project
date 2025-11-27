@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Welcome, {{ user.username }}!</h2>
+    
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Recent Appointments</h5>
+                </div>
+                <div class="card-body">
+                    {% if appointments %}
+                        <div class="list-group">
+                            {% for appointment in appointments %}
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">
+                                        {% if user.user_type == 'patient' %}
+                                            Dr. {{ appointment.doctor.get_full_name }}
+                                        {% else %}
+                                            Patient: {{ appointment.patient.get_full_name }}
+                                        {% endif %}
+                                    </h6>
+                                    <span class="badge bg-{% if appointment.status == 'completed' %}success{% elif appointment.status == 'confirmed' %}primary{% else %}warning{% endif %}">
+                                        {{ appointment.status|title }}
+                                    </span>
+                                </div>
+                                <p class="mb-1">Specialty: {{ appointment.specialty.name }}</p>
+                                <small>Date: {{ appointment.appointment_date }}</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p>No appointments yet.</p>
+                        {% if user.user_type == 'patient' %}
+                        <a href="{% url 'appointments:doctor_list' %}" class="btn btn-primary">Find a Doctor</a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    {% if user.user_type == 'patient' %}
+                    <a href="{% url 'appointments:doctor_list' %}" class="btn btn-outline-primary w-100 mb-2">Find Doctors</a>
+                    <a href="{% url 'profile' %}" class="btn btn-outline-secondary w-100 mb-2">My Profile</a>
+                    {% elif user.user_type == 'doctor' %}
+                    <a href="{% url 'appointments:my_appointments' %}" class="btn btn-outline-primary w-100 mb-2">My Appointments</a>
+                    <a href="{% url 'profile' %}" class="btn btn-outline-secondary w-100 mb-2">My Profile</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

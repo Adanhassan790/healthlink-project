@@ -1,0 +1,44 @@
+<footer class="footer">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-4 col-md-6 mb-4">
+                <h5>HealthLink</h5>
+                <p>AI-powered telemedicine platform connecting patients with qualified specialists.</p>
+                <!-- Optional Social Media Icons -->
+                <div class="footer-social">
+    <a href="#" class="social-icon" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+    <a href="#" class="social-icon" title="Facebook"><i class="fab fa-facebook-f"></i></a>
+    <a href="#" class="social-icon" title="Instagram"><i class="fab fa-instagram"></i></a>
+    <a href="#" class="social-icon" title="TikTok"><i class="fab fa-tiktok"></i></a>
+</div>
+            </div>
+            
+            <div class="col-lg-2 col-md-6 mb-4">
+                <h5>For Patients</h5>
+                <a href="{% url 'appointments:doctor_list' %}">Find Doctors</a>
+                <a href="#">Specialists</a>
+                <a href="#">How it Works</a>
+            </div>
+            
+            <div class="col-lg-2 col-md-6 mb-4">
+                <h5>For Doctors</h5>
+                <a href="{% url 'doctor_register' %}">Join HealthLink</a>
+                <a href="#">Doctor Portal</a>
+                <a href="#">Resources</a>
+            </div>
+            
+            <div class="col-lg-2 col-md-6 mb-4">
+                <h5>Company</h5>
+                <a href="#">About Us</a>
+                <a href="#">Contact</a>
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+            </div>
+        </div>
+        
+        <div class="text-center mt-4 pt-4 border-top border-gray-700">
+            <p>&copy; 2025 HealthLink. All rights reserved. Not a replacement for professional medical advice.</p>
+        </div>
+    </div>
+</footer>
+

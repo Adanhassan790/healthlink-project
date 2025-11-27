@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Messages - HealthLink{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">
+                            <i class="fas fa-inbox me-2"></i>My Messages
+                        </h4>
+                        <span class="badge bg-light text-primary fs-6">
+                            {{ conversations|length }} conversation{{ conversations|pluralize }}
+                        </span>
+                    </div>
+                </div>
+                
+                {% if conversations %}
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for conversation in conversations %}
+                        <a href="{% url 'messaging:conversation_detail' conversation.id %}" 
+                           class="list-group-item list-group-item-action conversation-item py-3">
+                            <div class="d-flex w-100 justify-content-between align-items-start">
+                                <div class="flex-grow-1 me-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="avatar-placeholder me-3">
+                                            <i class="fas {% if user.user_type == 'patient' %}fa-user-md text-primary{% else %}fa-user text-info{% endif %} fa-2x"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1 fw-bold conversation-title">
+                                                {% if user.user_type == 'patient' %}
+                                                    Dr. {{ conversation.doctor.get_full_name }}
+                                                {% else %}
+                                                    Patient: {{ conversation.patient.get_full_name }}
+                                                {% endif %}
+                                            </h6>
+                                            {% with last_message=conversation.messages.last %}
+                                            <p class="mb-1 text-muted conversation-preview">
+                                                {% if last_message %}
+                                                    <strong>
+                                                        {% if last_message.sender == user %}
+                                                            You:
+                                                        {% else %}
+                                                            {% if user.user_type == 'patient' %}
+                                                                Dr. {{ conversation.doctor.get_full_name }}:
+                                                            {% else %}
+                                                                {{ conversation.patient.get_full_name }}:
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    </strong>
+                                                    {{ last_message.content|truncatewords:12 }}
+                                                {% else %}
+                                                    <span class="text-muted fst-italic">No messages yet</span>
+                                                {% endif %}
+                                            </p>
+                                            {% endwith %}
+                                        </div>
+                                    </div>
+                                    
+                                    {% if conversation.appointment %}
+                                    <div class="mt-2">
+                                        <span class="badge bg-secondary bg-opacity-10 text-dark border">
+                                            <i class="fas fa-calendar-alt me-1"></i>{{ conversation.appointment.service_type }}
+                                        </span>
+                                        <small class="text-muted ms-2">
+                                            {{ conversation.appointment.date|date:"M j, Y" }}
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="text-end">
+                                    <small class="text-muted d-block conversation-time">
+                                        {{ conversation.updated_at|timesince }} ago
+                                    </small>
+                                    <!-- Unread count removed due to template syntax issues -->
+                                </div>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="card-body text-center py-5 empty-state">
+                    <div class="empty-state-content">
+                        <i class="fas fa-comments fa-4x text-muted mb-4 opacity-50"></i>
+                        <h4 class="text-muted mb-3">No conversations yet</h4>
+                        <p class="text-muted mb-4">Your messages with healthcare providers will appear here once you start communicating.</p>
+                        <a href="/appointments/doctors/" class="btn btn-primary btn-lg">
+                            <i class="fas fa-calendar-plus me-2"></i>Book an Appointment
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.conversation-item {
+    border: none;
+    border-bottom: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+    padding: 1.25rem 1.5rem;
+}
+
+.conversation-item:last-child {
+    border-bottom: none;
+}
+
+.conversation-item:hover {
+    background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+    transform: translateX(5px);
+    border-left: 4px solid #007bff;
+}
+
+.conversation-title {
+    color: #2c3e50;
+    font-size: 1.1rem;
+}
+
+.conversation-preview {
+    font-size: 0.9rem;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    /* Fallback for non-webkit browsers */
+    max-height: 2.8em;
+}
+
+.conversation-time {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.avatar-placeholder {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #e9ecef;
+}
+
+.empty-state {
+    background: linear-gradient(135deg, #fafbfc 0%, #f8f9fa 100%);
+}
+
+.empty-state-content {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.card {
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+}
+
+.badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* Animation for list items */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.conversation-item {
+    animation: slideIn 0.3s ease-out;
+    animation-fill-mode: both;
+}
+
+.conversation-item:nth-child(1) { animation-delay: 0.1s; }
+.conversation-item:nth-child(2) { animation-delay: 0.2s; }
+.conversation-item:nth-child(3) { animation-delay: 0.3s; }
+.conversation-item:nth-child(4) { animation-delay: 0.4s; }
+.conversation-item:nth-child(5) { animation-delay: 0.5s; }
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .conversation-item {
+        padding: 1rem;
+    }
+    
+    .avatar-placeholder {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .avatar-placeholder i {
+        font-size: 1.2rem !important;
+    }
+}
+</style>
+{% endblock %}

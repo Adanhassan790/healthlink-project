@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Book Appointment - HealthLink{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="text-center mb-5">
+                <h1>Book Your Appointment</h1>
+                <p class="lead">Schedule a consultation with Dr. {{ doctor.user.get_full_name }}</p>
+            </div>
+
+            <!-- Booking Card -->
+            <div class="card">
+                <div class="card-body p-4">
+                    <!-- Doctor Summary -->
+                    <div class="doctor-summary mb-4 p-3 bg-light rounded">
+                        <div class="d-flex align-items-center">
+                            <div class="doctor-avatar me-3">
+                                👨‍⚕️
+                            </div>
+                            <div>
+                                <h5 class="mb-1">Dr. {{ doctor.user.get_full_name }}</h5>
+                                <p class="text-tertiary mb-0">{{ doctor.specialization }}</p>
+                                <p class="text-tertiary mb-0">Consultation Fee: ${{ doctor.consultation_fee }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Booking Form -->
+                    <form method="post" class="booking-form">
+                        {% csrf_token %}
+                        
+                        <!-- Symptoms -->
+                        <div class="mb-4">
+                            <label for="symptoms" class="form-label">
+                                <strong>Describe Your Symptoms *</strong>
+                            </label>
+                            <textarea 
+                                name="symptoms" 
+                                id="symptoms" 
+                                class="form-control" 
+                                rows="4" 
+                                placeholder="Please describe what you're experiencing, how long you've had symptoms, and any other relevant information..."
+                                required>{{ symptoms|default:'' }}</textarea>
+                            <div class="form-text">This information helps the doctor prepare for your consultation.</div>
+                        </div>
+
+                        <!-- Appointment Date -->
+                        <div class="mb-4">
+                            <label for="appointment_date" class="form-label">
+                                <strong>Preferred Date *</strong>
+                            </label>
+                            <select name="appointment_date" id="appointment_date" class="form-select" required>
+                                <option value="">Select a date</option>
+                                {% for slot in available_slots %}
+                                <option value="{{ slot.display_date }}" 
+                                        {% if appointment_date == slot.display_date %}selected{% endif %}>
+                                    {{ slot.display_text }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Appointment Time -->
+                        <div class="mb-4">
+                            <label for="appointment_time" class="form-label">
+                                <strong>Preferred Time *</strong>
+                            </label>
+                            <select name="appointment_time" id="appointment_time" class="form-select" required>
+                                <option value="">Select a time</option>
+                                <option value="09:00">9:00 AM</option>
+                                <option value="10:00">10:00 AM</option>
+                                <option value="11:00">11:00 AM</option>
+                                <option value="12:00">12:00 PM</option>
+                                <option value="13:00">1:00 PM</option>
+                                <option value="14:00">2:00 PM</option>
+                                <option value="15:00">3:00 PM</option>
+                                <option value="16:00">4:00 PM</option>
+                                <option value="17:00">5:00 PM</option>
+                            </select>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                Book Appointment - ${{ doctor.consultation_fee }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Help Text -->
+            <div class="text-center mt-4">
+                <p class="text-tertiary">
+                    After booking, you'll receive a confirmation email with instructions for your video consultation.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

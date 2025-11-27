@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Make Payment - HealthLink{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">💳 Make Payment</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Appointment Summary -->
+                    <div class="appointment-summary mb-4 p-3 bg-light rounded">
+                        <h5>Appointment Details</h5>
+                        <p class="mb-1"><strong>Doctor:</strong> Dr. {{ doctor.user.get_full_name }}</p>
+                        <p class="mb-1"><strong>Specialty:</strong> {{ doctor.specialization }}</p>
+                        <p class="mb-1"><strong>Date:</strong> {{ appointment.appointment_date|date:"F j, Y" }}</p>
+                        <p class="mb-0"><strong>Time:</strong> {{ appointment.appointment_date|time:"g:i A" }}</p>
+                    </div>
+
+                    <!-- Payment Amount -->
+                    <div class="payment-amount text-center mb-4">
+                        <h3 class="text-success">KES {{ amount }}</h3>
+                        <p class="text-muted">Consultation Fee</p>
+                    </div>
+
+                    <!-- Payment Form -->
+                    <form id="payment-form">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="phone_number" class="form-label">
+                                <strong>M-Pesa Phone Number</strong>
+                            </label>
+                            <input type="tel" 
+                                   class="form-control form-control-lg" 
+                                   id="phone_number" 
+                                   name="phone_number"
+                                   placeholder="e.g., 0712345678"
+                                   required
+                                   pattern="[0-9]{10,12}">
+                            <div class="form-text">
+                                Enter your M-Pesa registered phone number. You will receive a payment prompt.
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg" id="pay-button">
+                                Pay with M-Pesa
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Payment Status -->
+                    <div id="payment-status" class="mt-4" style="display: none;">
+                        <div class="alert alert-info">
+                            <h6>Payment in Progress</h6>
+                            <p id="status-message">Waiting for payment confirmation...</p>
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- M-Pesa Instructions -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h6>📱 How to Pay with M-Pesa</h6>
+                    <ol class="small">
+                        <li>Enter your M-Pesa registered phone number</li>
+                        <li>Click "Pay with M-Pesa"</li>
+                        <li>Check your phone for an M-Pesa prompt</li>
+                        <li>Enter your M-Pesa PIN to complete payment</li>
+                        <li>Wait for confirmation</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('payment-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const payButton = document.getElementById('pay-button');
+    const statusDiv = document.getElementById('payment-status');
+    const statusMessage = document.getElementById('status-message');
+    
+    // Show loading state
+    payButton.disabled = true;
+    payButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Processing...';
+    statusDiv.style.display = 'block';
+    
+    // Get form data
+    const formData = new FormData(this);
+    
+    // Send payment request
+    fetch(`/payments/initiate/{{ appointment.id }}/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            statusMessage.innerHTML = '✅ Payment initiated! Check your phone for M-Pesa prompt...';
+            // Poll for payment status
+            checkPaymentStatus(data.transaction_id);
+        } else {
+            statusMessage.innerHTML = `❌ ${data.message}`;
+            payButton.disabled = false;
+            payButton.innerHTML = 'Try Again';
+        }
+    })
+    .catch(error => {
+        statusMessage.innerHTML = '❌ An error occurred. Please try again.';
+        payButton.disabled = false;
+        payButton.innerHTML = 'Try Again';
+    });
+});
+
+function checkPaymentStatus(transactionId) {
+    // Poll for payment status every 3 seconds
+    const interval = setInterval(() => {
+        fetch(`/payments/status/${transactionId}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById('status-message').innerHTML = 
+                        `✅ Payment successful! Receipt: ${data.receipt_number}`;
+                    clearInterval(interval);
+                    // Redirect to appointments page after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = "{% url 'appointments:my_appointments' %}";
+                    }, 2000);
+                } else if (data.status === 'failed') {
+                    document.getElementById('status-message').innerHTML = 
+                        `❌ Payment failed: ${data.result_description}`;
+                    clearInterval(interval);
+                    document.getElementById('pay-button').disabled = false;
+                    document.getElementById('pay-button').innerHTML = 'Try Again';
+                }
+                // If still pending, continue polling
+            });
+    }, 3000);
+}
+</script>
+{% endblock %}
