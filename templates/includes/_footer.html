@@ -4,40 +4,48 @@
             <div class="col-lg-4 col-md-6 mb-4">
                 <h5>HealthLink</h5>
                 <p>AI-powered telemedicine platform connecting patients with qualified specialists.</p>
-                <!-- Optional Social Media Icons -->
+                
+                <!-- Contact Info -->
+                <div class="footer-contact">
+                    <p><i class="fas fa-envelope"></i> qonqona@gmail.com</p>
+                    <p><i class="fas fa-phone"></i> 0797754321</p>
+                    <p><i class="fas fa-map-marker-alt"></i> Nairobi, Kenya</p>
+                </div>
+                
+                <!-- Social Media Icons -->
                 <div class="footer-social">
-    <a href="#" class="social-icon" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
-    <a href="#" class="social-icon" title="Facebook"><i class="fab fa-facebook-f"></i></a>
-    <a href="#" class="social-icon" title="Instagram"><i class="fab fa-instagram"></i></a>
-    <a href="#" class="social-icon" title="TikTok"><i class="fab fa-tiktok"></i></a>
-</div>
+                    <a href="https://wa.me/254797754321" class="social-icon" title="WhatsApp" target="_blank"><i class="fab fa-whatsapp"></i></a>
+                    <a href="https://facebook.com/ibnuhassan" class="social-icon" title="Facebook" target="_blank"><i class="fab fa-facebook-f"></i></a>
+                    <a href="https://instagram.com/ibnuhassan" class="social-icon" title="Instagram" target="_blank"><i class="fab fa-instagram"></i></a>
+                    <a href="https://tiktok.com/@ibnuhassan" class="social-icon" title="TikTok" target="_blank"><i class="fab fa-tiktok"></i></a>
+                </div>
             </div>
             
             <div class="col-lg-2 col-md-6 mb-4">
                 <h5>For Patients</h5>
                 <a href="{% url 'appointments:doctor_list' %}">Find Doctors</a>
-                <a href="#">Specialists</a>
-                <a href="#">How it Works</a>
+                <a href="{% url 'triage:triage' %}">AI Symptom Checker</a>
+                <a href="{% url 'patient_register' %}">Register as Patient</a>
             </div>
             
             <div class="col-lg-2 col-md-6 mb-4">
                 <h5>For Doctors</h5>
                 <a href="{% url 'doctor_register' %}">Join HealthLink</a>
-                <a href="#">Doctor Portal</a>
-                <a href="#">Resources</a>
+                <a href="{% url 'login' %}">Doctor Login</a>
+                <a href="{% url 'prescriptions:create_prescription' %}">Write Prescription</a>
             </div>
             
             <div class="col-lg-2 col-md-6 mb-4">
-                <h5>Company</h5>
-                <a href="#">About Us</a>
-                <a href="#">Contact</a>
-                <a href="#">Privacy Policy</a>
-                <a href="#">Terms of Service</a>
+                <h5>Quick Links</h5>
+                <a href="{% url 'home' %}">Home</a>
+                <a href="{% url 'login' %}">Login</a>
+                <a href="{% url 'dashboard' %}">Dashboard</a>
+                <a href="{% url 'profile' %}">Profile</a>
             </div>
         </div>
         
         <div class="text-center mt-4 pt-4 border-top border-gray-700">
-            <p>&copy; 2025 HealthLink. All rights reserved. Not a replacement for professional medical advice.</p>
+            <p>&copy; {% now "Y" %} HealthLink. All rights reserved. Not a replacement for professional medical advice.</p>
         </div>
     </div>
 </footer>

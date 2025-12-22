@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+*.pot
+*.pyc
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Static files (collected)
+staticfiles/
+
+# Media uploads
+media/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.lnk
+
+# Screenshots and temp images
+static/images/*.png
+static/images/*.jpg
+static/images/*.lnk
+
+# Sensitive files - M-Pesa credentials
+payments/mpesa_config.py
+
+# ML model files (large)
+*.pkl
+*.h5
+*.model

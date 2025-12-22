@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Prescription - HealthLink{% endblock %}
+
+{% block content %}
+<style>
+    .create-container {
+        padding: 2rem 0;
+        min-height: 80vh;
+        background: #f8fafc;
+    }
+    
+    .page-header {
+        margin-bottom: 2rem;
+    }
+    
+    .page-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+    
+    .back-link {
+        color: #10b981;
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .back-link:hover {
+        color: #059669;
+    }
+    
+    .form-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .form-section {
+        margin-bottom: 2rem;
+    }
+    
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #10b981;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.2s;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #10b981;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+    
+    .help-text {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+    
+    .btn-submit {
+        background: #10b981;
+        color: white;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    
+    .btn-submit:hover {
+        background: #059669;
+    }
+    
+    .btn-cancel {
+        background: #f3f4f6;
+        color: #374151;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 1rem;
+        text-decoration: none;
+        margin-left: 1rem;
+    }
+    
+    .btn-cancel:hover {
+        background: #e5e7eb;
+        color: #1f2937;
+    }
+</style>
+
+<div class="create-container">
+    <div class="container">
+        <a href="{% url 'prescriptions:prescription_list' %}" class="back-link">
+            ← Back to Prescriptions
+        </a>
+        
+        <div class="page-header">
+            <h1 class="page-title">📝 Create New Prescription</h1>
+        </div>
+        
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="form-card">
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        <div class="form-section">
+                            <h3 class="section-title">👤 Patient Information</h3>
+                            
+                            <div class="form-group">
+                                <label for="id_patient">Patient *</label>
+                                {{ form.patient }}
+                                <p class="help-text">Select a patient from your appointment history</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="id_appointment">Related Appointment (Optional)</label>
+                                {{ form.appointment }}
+                                <p class="help-text">Link this prescription to a specific appointment</p>
+                            </div>
+                        </div>
+                        
+                        <div class="form-section">
+                            <h3 class="section-title">🩺 Medical Details</h3>
+                            
+                            <div class="form-group">
+                                <label for="id_diagnosis">Diagnosis / Condition *</label>
+                                {{ form.diagnosis }}
+                                <p class="help-text">Enter the diagnosis or condition being treated</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="id_notes">Additional Notes</label>
+                                {{ form.notes }}
+                                <p class="help-text">Any additional instructions for patient or pharmacist</p>
+                            </div>
+                        </div>
+                        
+                        <div class="form-section">
+                            <h3 class="section-title">📅 Validity</h3>
+                            
+                            <div class="form-group">
+                                <label for="id_valid_until">Valid Until *</label>
+                                {{ form.valid_until }}
+                                <p class="help-text">Prescription expiry date (default: 30 days)</p>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn-submit">
+                                Continue → Add Medications
+                            </button>
+                            <a href="{% url 'prescriptions:prescription_list' %}" class="btn-cancel">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="form-card" style="background: #f0fdf4;">
+                    <h4 style="color: #065f46; margin-bottom: 1rem;">💡 Tips</h4>
+                    <ul style="color: #047857; padding-left: 1.25rem; margin: 0;">
+                        <li style="margin-bottom: 0.5rem;">Select the patient first</li>
+                        <li style="margin-bottom: 0.5rem;">Be specific with diagnosis</li>
+                        <li style="margin-bottom: 0.5rem;">You'll add medications on the next step</li>
+                        <li style="margin-bottom: 0.5rem;">Sign the prescription to activate it</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

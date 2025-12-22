@@ -1,0 +1,440 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ prescription.prescription_number }} - HealthLink{% endblock %}
+
+{% block content %}
+<style>
+    .view-container {
+        padding: 2rem 0;
+        min-height: 80vh;
+        background: #f8fafc;
+    }
+    
+    .back-link {
+        color: #10b981;
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .prescription-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        padding: 2rem;
+    }
+    
+    .prescription-number {
+        font-family: monospace;
+        font-size: 1.25rem;
+        opacity: 0.9;
+        margin-bottom: 0.5rem;
+    }
+    
+    .prescription-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+    
+    .header-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2rem;
+    }
+    
+    .header-info-item {
+        opacity: 0.95;
+    }
+    
+    .header-info-item label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        display: block;
+        opacity: 0.8;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.35rem 1rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+    }
+    
+    .status-active { background: rgba(255,255,255,0.2); color: white; }
+    .status-dispensed { background: #dbeafe; color: #1e40af; }
+    .status-completed { background: #e5e7eb; color: #374151; }
+    
+    .card-body {
+        padding: 2rem;
+    }
+    
+    .section {
+        margin-bottom: 2rem;
+    }
+    
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #10b981;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .diagnosis-box {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 12px;
+        padding: 1.25rem;
+    }
+    
+    .diagnosis-text {
+        color: #047857;
+        font-size: 1.1rem;
+    }
+    
+    .medication-card {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+    
+    .medication-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+    
+    .medication-name {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+    
+    .medication-generic {
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+    
+    .medication-form {
+        background: #e0e7ff;
+        color: #4338ca;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .dosage-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1rem;
+    }
+    
+    .dosage-item {
+        background: white;
+        padding: 0.75rem;
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .dosage-item label {
+        display: block;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        color: #6b7280;
+        margin-bottom: 0.25rem;
+    }
+    
+    .dosage-item span {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .special-instructions {
+        background: #fef3c7;
+        border: 1px solid #fcd34d;
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin-top: 0.75rem;
+        font-size: 0.9rem;
+        color: #92400e;
+    }
+    
+    .doctor-card {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        background: #f9fafb;
+        padding: 1rem;
+        border-radius: 12px;
+    }
+    
+    .doctor-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #10b981, #059669);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    
+    .doctor-name {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .doctor-specialty {
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+    }
+    
+    .btn-primary { background: #10b981; color: white; }
+    .btn-primary:hover { background: #059669; color: white; }
+    
+    .btn-outline { background: white; color: #374151; border: 1px solid #d1d5db; }
+    .btn-outline:hover { background: #f3f4f6; }
+    
+    .notes-box {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        border-radius: 12px;
+        padding: 1.25rem;
+    }
+    
+    .notes-text {
+        color: #c2410c;
+    }
+    
+    .validity-info {
+        display: flex;
+        gap: 2rem;
+        background: #f9fafb;
+        padding: 1rem;
+        border-radius: 8px;
+        flex-wrap: wrap;
+    }
+    
+    .validity-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .validity-item .icon {
+        font-size: 1.25rem;
+    }
+    
+    .valid-status {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    .valid-active { background: #d1fae5; color: #065f46; }
+    .valid-expired { background: #fee2e2; color: #991b1b; }
+</style>
+
+<div class="view-container">
+    <div class="container">
+        <a href="{% url 'prescriptions:my_prescriptions' %}" class="back-link">
+            ← Back to My Prescriptions
+        </a>
+        
+        <div class="prescription-card">
+            <div class="card-header">
+                <div class="prescription-number">{{ prescription.prescription_number }}</div>
+                <h1 class="prescription-title">📋 Your Prescription</h1>
+                
+                <div class="header-info">
+                    <div class="header-info-item">
+                        <label>Prescribed By</label>
+                        <span>Dr. {{ prescription.doctor.get_full_name }}</span>
+                    </div>
+                    <div class="header-info-item">
+                        <label>Date Issued</label>
+                        <span>{{ prescription.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    <div class="header-info-item">
+                        <label>Status</label>
+                        <span class="status-badge status-{{ prescription.status }}">
+                            {{ prescription.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <!-- Validity -->
+                <div class="section">
+                    <h3 class="section-title">📅 Validity</h3>
+                    <div class="validity-info">
+                        <div class="validity-item">
+                            <span class="icon">📆</span>
+                            <div>
+                                <label style="font-size: 0.75rem; color: #6b7280; display: block;">Valid Until</label>
+                                <span style="font-weight: 600;">{{ prescription.valid_until|date:"F d, Y" }}</span>
+                            </div>
+                        </div>
+                        <div class="validity-item">
+                            <span class="icon">
+                                {% now "Y-m-d" as today %}
+                                {% if prescription.valid_until|date:"Y-m-d" >= today %}
+                                ✅
+                                {% else %}
+                                ❌
+                                {% endif %}
+                            </span>
+                            <span class="valid-status {% if prescription.valid_until|date:'Y-m-d' >= today %}valid-active{% else %}valid-expired{% endif %}">
+                                {% if prescription.valid_until|date:"Y-m-d" >= today %}
+                                Valid
+                                {% else %}
+                                Expired
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Diagnosis -->
+                <div class="section">
+                    <h3 class="section-title">🩺 Diagnosis</h3>
+                    <div class="diagnosis-box">
+                        <p class="diagnosis-text">{{ prescription.diagnosis }}</p>
+                    </div>
+                </div>
+                
+                <!-- Medications -->
+                <div class="section">
+                    <h3 class="section-title">💊 Medications ({{ items|length }})</h3>
+                    
+                    {% for item in items %}
+                    <div class="medication-card">
+                        <div class="medication-header">
+                            <div>
+                                <div class="medication-name">{{ item.medication.name }}</div>
+                                <div class="medication-generic">{{ item.medication.generic_name }} - {{ item.medication.strength }}</div>
+                            </div>
+                            <span class="medication-form">{{ item.medication.get_form_display }}</span>
+                        </div>
+                        
+                        <div class="dosage-grid">
+                            <div class="dosage-item">
+                                <label>Dosage</label>
+                                <span>{{ item.dosage }}</span>
+                            </div>
+                            <div class="dosage-item">
+                                <label>Frequency</label>
+                                <span>{{ item.get_frequency_display }}</span>
+                            </div>
+                            <div class="dosage-item">
+                                <label>Duration</label>
+                                <span>{{ item.duration_value }} {{ item.duration_unit }}</span>
+                            </div>
+                            <div class="dosage-item">
+                                <label>Quantity</label>
+                                <span>{{ item.quantity }}</span>
+                            </div>
+                        </div>
+                        
+                        {% if item.special_instructions %}
+                        <div class="special-instructions">
+                            ⚠️ {{ item.special_instructions }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <p style="text-align: center; color: #6b7280; padding: 2rem;">
+                        No medications in this prescription.
+                    </p>
+                    {% endfor %}
+                </div>
+                
+                {% if prescription.notes %}
+                <!-- Additional Notes -->
+                <div class="section">
+                    <h3 class="section-title">📝 Additional Notes</h3>
+                    <div class="notes-box">
+                        <p class="notes-text">{{ prescription.notes }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Prescriber Information -->
+                <div class="section">
+                    <h3 class="section-title">👨‍⚕️ Prescribed By</h3>
+                    <div class="doctor-card">
+                        <div class="doctor-avatar">
+                            {{ prescription.doctor.first_name|slice:":1"|upper }}{{ prescription.doctor.last_name|slice:":1"|upper }}
+                        </div>
+                        <div>
+                            <div class="doctor-name">Dr. {{ prescription.doctor.get_full_name }}</div>
+                            <div class="doctor-specialty">
+                                {% if prescription.doctor.userprofile.specialization %}
+                                {{ prescription.doctor.userprofile.specialization }}
+                                {% else %}
+                                Healthcare Provider
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Actions -->
+                <div class="action-buttons">
+                    <a href="{% url 'prescriptions:download_prescription' pk=prescription.pk %}" 
+                       class="btn btn-primary" target="_blank">
+                        🖨️ Print Prescription
+                    </a>
+                    <a href="{% url 'prescriptions:my_prescriptions' %}" class="btn btn-outline">
+                        ← Back to All Prescriptions
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

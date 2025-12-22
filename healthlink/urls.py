@@ -24,4 +24,6 @@ urlpatterns = [
     path('triage/', include('triage.urls')),
     path('messaging/', include('messaging.urls', namespace='messaging')),  
     path('payments/', include('payments.urls')),
+    path('prescriptions/', include('prescriptions.urls')),
+    path('notifications/', include('notifications.urls')),
 ]

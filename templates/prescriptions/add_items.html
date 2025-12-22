@@ -1,0 +1,369 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Add Medications - {{ prescription.prescription_number }} - HealthLink{% endblock %}
+
+{% block content %}
+<style>
+    .add-items-container {
+        padding: 2rem 0;
+        min-height: 80vh;
+        background: #f8fafc;
+    }
+    
+    .page-header {
+        margin-bottom: 2rem;
+    }
+    
+    .page-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+    
+    .prescription-badge {
+        font-family: monospace;
+        background: #dbeafe;
+        color: #1e40af;
+        padding: 0.25rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+    }
+    
+    .back-link {
+        color: #10b981;
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+    
+    .card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.95rem;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #10b981;
+    }
+    
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        transition: background 0.2s;
+    }
+    
+    .btn-primary {
+        background: #10b981;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #059669;
+        color: white;
+    }
+    
+    .btn-secondary {
+        background: #6366f1;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background: #4f46e5;
+        color: white;
+    }
+    
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .btn-danger:hover {
+        background: #dc2626;
+        color: white;
+    }
+    
+    .medication-list {
+        margin-top: 1rem;
+    }
+    
+    .medication-item {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .medication-info h4 {
+        margin: 0 0 0.25rem 0;
+        color: #1f2937;
+        font-size: 1rem;
+    }
+    
+    .medication-details {
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+    
+    .empty-medications {
+        text-align: center;
+        padding: 2rem;
+        color: #6b7280;
+    }
+    
+    .actions-bar {
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .prescription-summary {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+    
+    .summary-label {
+        color: #065f46;
+        font-weight: 500;
+    }
+    
+    .summary-value {
+        color: #047857;
+        font-weight: 600;
+    }
+</style>
+
+<div class="add-items-container">
+    <div class="container">
+        <a href="{% url 'prescriptions:prescription_list' %}" class="back-link">
+            ← Back to Prescriptions
+        </a>
+        
+        <div class="page-header">
+            <h1 class="page-title">
+                💊 Add Medications 
+                <span class="prescription-badge">{{ prescription.prescription_number }}</span>
+            </h1>
+        </div>
+        
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Add Medication Form -->
+                <div class="card">
+                    <h3 class="card-title">➕ Add Medication</h3>
+                    
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        <div class="form-group">
+                            <label>Medication *</label>
+                            {{ form.medication }}
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Dosage *</label>
+                                {{ form.dosage }}
+                            </div>
+                            <div class="form-group">
+                                <label>Frequency *</label>
+                                {{ form.frequency }}
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Duration *</label>
+                                {{ form.duration_value }}
+                            </div>
+                            <div class="form-group">
+                                <label>Unit</label>
+                                {{ form.duration_unit }}
+                            </div>
+                            <div class="form-group">
+                                <label>Quantity *</label>
+                                {{ form.quantity }}
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Special Instructions</label>
+                            {{ form.special_instructions }}
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Refills Allowed</label>
+                                {{ form.refills_allowed }}
+                            </div>
+                            <div class="form-group">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1.5rem;">
+                                    {{ form.allow_generic }}
+                                    Allow Generic Substitution
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            ➕ Add to Prescription
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- Current Medications -->
+                <div class="card">
+                    <h3 class="card-title">📋 Current Medications ({{ items|length }})</h3>
+                    
+                    {% if items %}
+                        <div class="medication-list">
+                            {% for item in items %}
+                            <div class="medication-item">
+                                <div class="medication-info">
+                                    <h4>{{ item.medication.name }}</h4>
+                                    <div class="medication-details">
+                                        {{ item.dosage }} • {{ item.get_frequency_display }} • 
+                                        {{ item.duration_value }} {{ item.duration_unit }} • 
+                                        Qty: {{ item.quantity }}
+                                        {% if item.special_instructions %}
+                                        <br><em>{{ item.special_instructions }}</em>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <a href="{% url 'prescriptions:remove_item' pk=prescription.pk item_pk=item.pk %}" 
+                                   class="btn btn-danger"
+                                   onclick="return confirm('Remove this medication?')">
+                                    🗑️ Remove
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-medications">
+                            <p>💊 No medications added yet</p>
+                            <p>Use the form above to add medications to this prescription.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <!-- Prescription Summary -->
+                <div class="card">
+                    <h3 class="card-title">📄 Prescription Summary</h3>
+                    
+                    <div class="prescription-summary">
+                        <div class="summary-row">
+                            <span class="summary-label">Patient:</span>
+                            <span class="summary-value">{{ prescription.patient.get_full_name|default:prescription.patient.username }}</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Diagnosis:</span>
+                            <span class="summary-value">{{ prescription.diagnosis|truncatewords:10 }}</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Valid Until:</span>
+                            <span class="summary-value">{{ prescription.valid_until|date:"M d, Y" }}</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Status:</span>
+                            <span class="summary-value">{{ prescription.get_status_display }}</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Medications:</span>
+                            <span class="summary-value">{{ items|length }}</span>
+                        </div>
+                    </div>
+                    
+                    {% if items %}
+                    <a href="{% url 'prescriptions:sign_prescription' pk=prescription.pk %}" class="btn btn-secondary" style="width: 100%; justify-content: center;">
+                        ✍️ Sign & Activate Prescription
+                    </a>
+                    {% else %}
+                    <button class="btn" style="width: 100%; justify-content: center; background: #e5e7eb; color: #9ca3af; cursor: not-allowed;" disabled>
+                        Add medications to sign
+                    </button>
+                    {% endif %}
+                </div>
+                
+                <!-- Quick Add Common Medications -->
+                <div class="card" style="background: #fefce8;">
+                    <h4 style="color: #854d0e; margin-bottom: 1rem;">⚡ Common Medications</h4>
+                    <p style="color: #a16207; font-size: 0.875rem;">
+                        Use the dropdown above to select from our database of {{ medications.count }}+ medications.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

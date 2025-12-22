@@ -77,10 +77,11 @@
         display: inline-block;
     }
     
-    .action-buttons {
+    .action-buttons, .action-panel {
         display: flex;
         gap: 1rem;
         margin-top: 2rem;
+        flex-wrap: wrap;
     }
     
     .btn-primary {
@@ -93,6 +94,7 @@
         text-decoration: none;
         display: inline-block;
         transition: background 0.2s ease;
+        cursor: pointer;
     }
     
     .btn-primary:hover {
@@ -111,12 +113,28 @@
         text-decoration: none;
         display: inline-block;
         transition: background 0.2s ease;
+        cursor: pointer;
     }
     
     .btn-secondary:hover {
         background: #e5e7eb;
         color: #374151;
         text-decoration: none;
+    }
+    
+    .btn-small {
+        background: #10b981;
+        color: white;
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        text-decoration: none;
+        display: inline-block;
+        margin-top: 0.5rem;
+    }
+    
+    .btn-small:hover {
+        background: #059669;
     }
     
     .symptoms-list {
@@ -133,6 +151,35 @@
         border-radius: 20px;
         font-size: 0.9rem;
     }
+    
+    .results-explanation, .alternative-specialties {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    
+    .symptom-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+    
+    .specialty-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+    }
+    
+    .specialty-card {
+        background: #f9fafb;
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+    }
+    
 </style>
 
 <div class="results-container">
@@ -147,6 +194,7 @@
 
         <div class="row justify-content-center">
             <div class="col-lg-8">
+                <!-- Main Results Card -->
                 <div class="results-card">
                     <div class="card-header">
                         <h4>Recommended Specialist</h4>
@@ -177,14 +225,63 @@
                             <a href="{% url 'appointments:doctor_list' %}" class="btn-primary">
                                 Find {{ predicted_specialty }} Doctors
                             </a>
-                            <a href="{% url 'triage' %}" class="btn-secondary">
+                            <a href="{% url 'triage:triage' %}" class="btn-secondary">
                                 Start New Triage
                             </a>
                         </div>
                     </div>
                 </div>
-                
-                <div class="text-center">
+
+                <!-- Explanation Section -->
+                <div class="results-explanation">
+                    <h4>How We Determined This</h4>
+                    <div class="explanation-content">
+                        <p>{{ result.explanation }}</p>
+                        
+                        <div class="symptom-analysis">
+                            <h5>Symptom Analysis:</h5>
+                            {% for symptom, details in symptom_details.items %}
+                                <div class="symptom-row">
+                                    <span class="symptom-name">{{ symptom }}</span>
+                                    <span class="severity">Severity: {{ details.severity }}/5</span>
+                                    <span class="duration">Duration: {{ details.duration }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alternative Specialties -->
+                <div class="alternative-specialties">
+                    <h4>Alternative Specialties to Consider</h4>
+                    <div class="specialty-grid">
+                        {% for alt in result.alternative_specialties %}
+                            <div class="specialty-card">
+                                <h5>{{ alt.specialty }}</h5>
+                                <div class="confidence-badge">{{ alt.confidence|floatformat:1 }}%</div>
+                                <a href="{% url 'appointments:doctor_list' %}?specialty={{ alt.specialty }}" 
+                                   class="btn-small">
+                                    View Doctors
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Action Panel -->
+                <div class="action-panel">
+                    <button class="btn-primary" onclick="bookAppointment('{{ predicted_specialty }}')">
+                        📅 Book {{ predicted_specialty }} Appointment
+                    </button>
+                    <button class="btn-secondary" onclick="saveTriageSession()">
+                        💾 Save This Assessment
+                    </button>
+                    <a href="{% url 'messaging:conversation_list' %}" class="btn-secondary">
+                        💬 Messages
+                    </a>
+                </div>
+
+                <div class="text-center mt-3">
                     <p class="text-muted">
                         <small>
                             Note: This AI assessment is for informational purposes only. 
@@ -196,4 +293,103 @@
         </div>
     </div>
 </div>
+
+<!-- Add this JavaScript to fix the onclick errors -->
+<script>
+// Function to book appointment
+function bookAppointment(specialty) {
+    if (confirm(`Book an appointment with a ${specialty} specialist?`)) {
+        window.location.href = '/appointments/doctors/?specialty=' + encodeURIComponent(specialty);
+    }
+}
+
+// Function to save triage session
+function saveTriageSession() {
+    const saveBtn = event.target;
+    const originalText = saveBtn.innerHTML;
+    
+    // Show loading state
+    saveBtn.innerHTML = '💾 Saving...';
+    saveBtn.disabled = true;
+    
+    // Get CSRF token
+    const csrftoken = getCookie('csrftoken');
+    
+    // Prepare data
+    const data = {
+        specialty: '{{ predicted_specialty }}',
+        confidence: parseFloat('{{ confidence }}'),
+        symptoms: [
+            {% for symptom in symptoms %}
+            '{{ symptom.name }}',
+            {% endfor %}
+        ]
+    };
+    
+    // Make AJAX request to save the session
+    fetch('/triage/save-assessment/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Success state
+            saveBtn.innerHTML = '✅ Saved!';
+            saveBtn.style.background = '#10b981';
+            saveBtn.style.color = 'white';
+            saveBtn.style.borderColor = '#10b981';
+            
+            // Show success message
+            alert('Assessment saved to your dashboard! Redirecting...');
+            
+            // 🔥 IMPORTANT: Redirect to dashboard after 1.5 seconds
+            setTimeout(() => {
+                window.location.href = '/dashboard/#saved-assessments';
+            }, 1500);
+            
+        } else {
+            throw new Error(data.error || 'Failed to save');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        // Error state
+        saveBtn.innerHTML = '❌ Failed';
+        saveBtn.style.background = '#ef4444';
+        saveBtn.style.color = 'white';
+        saveBtn.style.borderColor = '#ef4444';
+        alert('Failed to save assessment. Please try again.');
+        
+        // Reset button
+        setTimeout(() => {
+            saveBtn.innerHTML = originalText;
+            saveBtn.disabled = false;
+            saveBtn.style.background = '';
+            saveBtn.style.color = '';
+            saveBtn.style.borderColor = '';
+        }, 3000);
+    });
+}
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
 {% endblock %}

@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reschedule Appointment - HealthLink{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">🔄 Reschedule Appointment</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Current Appointment Details -->
+                    <div class="current-appointment mb-4 p-3 bg-light rounded">
+                        <h5>Current Appointment</h5>
+                        <p><strong>Doctor:</strong> Dr. {{ appointment.doctor.get_full_name }}</p>
+                        <p><strong>Current Date:</strong> {{ appointment.appointment_date|date:"F j, Y" }}</p>
+                        <p><strong>Current Time:</strong> {{ appointment.appointment_date|time:"g:i A" }}</p>
+                    </div>
+
+                    <!-- Reschedule Form -->
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- New Date -->
+                        <div class="mb-3">
+                            <label for="appointment_date" class="form-label">
+                                <strong>New Date *</strong>
+                            </label>
+                            <select name="appointment_date" id="appointment_date" class="form-select" required>
+                                <option value="">Select a new date</option>
+                                {% for slot in available_slots %}
+                                <option value="{{ slot.display_date }}">
+                                    {{ slot.display_text }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- New Time -->
+                        <div class="mb-4">
+                            <label for="appointment_time" class="form-label">
+                                <strong>New Time *</strong>
+                            </label>
+                            <select name="appointment_time" id="appointment_time" class="form-select" required>
+                                <option value="">Select a new time</option>
+                                <option value="09:00">9:00 AM</option>
+                                <option value="10:00">10:00 AM</option>
+                                <option value="11:00">11:00 AM</option>
+                                <option value="12:00">12:00 PM</option>
+                                <option value="13:00">1:00 PM</option>
+                                <option value="14:00">2:00 PM</option>
+                                <option value="15:00">3:00 PM</option>
+                                <option value="16:00">4:00 PM</option>
+                                <option value="17:00">5:00 PM</option>
+                            </select>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Reschedule Appointment</button>
+                            <a href="{% url 'appointments:my_appointments' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

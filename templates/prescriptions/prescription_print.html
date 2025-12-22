@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Prescription {{ prescription.prescription_number }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Times New Roman', serif;
+            background: white;
+            color: #000;
+            font-size: 12pt;
+            line-height: 1.4;
+        }
+        
+        .prescription-page {
+            width: 8.5in;
+            min-height: 11in;
+            margin: 0 auto;
+            padding: 0.5in;
+            background: white;
+        }
+        
+        @media print {
+            .prescription-page {
+                width: 100%;
+                height: 100%;
+                padding: 0.3in;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+        
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 3px double #10b981;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .clinic-info h1 {
+            color: #10b981;
+            font-size: 24pt;
+            margin-bottom: 5px;
+        }
+        
+        .clinic-info p {
+            font-size: 10pt;
+            color: #666;
+        }
+        
+        .rx-symbol {
+            font-size: 48pt;
+            color: #10b981;
+            font-weight: bold;
+            font-family: serif;
+        }
+        
+        /* Patient Info */
+        .patient-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+        
+        .info-item {
+            display: flex;
+        }
+        
+        .info-item label {
+            font-weight: bold;
+            width: 100px;
+        }
+        
+        /* Prescription Details */
+        .prescription-number {
+            text-align: center;
+            font-family: monospace;
+            font-size: 14pt;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f0fdf4;
+            border: 1px solid #10b981;
+            border-radius: 4px;
+        }
+        
+        .diagnosis-box {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .diagnosis-box h3 {
+            font-size: 11pt;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        /* Medications Table */
+        .medications-section h2 {
+            font-size: 14pt;
+            margin-bottom: 10px;
+            color: #1f2937;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+        }
+        
+        .medications-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        
+        .medications-table th {
+            background: #f3f4f6;
+            padding: 10px;
+            text-align: left;
+            font-size: 10pt;
+            border: 1px solid #ddd;
+        }
+        
+        .medications-table td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            vertical-align: top;
+        }
+        
+        .medication-name {
+            font-weight: bold;
+        }
+        
+        .medication-generic {
+            font-size: 9pt;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .instructions {
+            font-size: 9pt;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        /* Signature */
+        .signature-section {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .signature-box {
+            width: 45%;
+        }
+        
+        .signature-line {
+            border-top: 1px solid #000;
+            margin-top: 50px;
+            padding-top: 5px;
+            font-size: 10pt;
+        }
+        
+        .digital-signature {
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        
+        .digital-signature .checkmark {
+            color: #10b981;
+            font-weight: bold;
+        }
+        
+        /* Footer */
+        .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+            font-size: 9pt;
+            color: #666;
+            text-align: center;
+        }
+        
+        .qr-placeholder {
+            width: 80px;
+            height: 80px;
+            border: 2px solid #ddd;
+            display: inline-block;
+            text-align: center;
+            line-height: 80px;
+            font-size: 8pt;
+            color: #999;
+        }
+        
+        /* Print Button */
+        .print-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #1f2937;
+            padding: 15px;
+            text-align: center;
+            z-index: 1000;
+        }
+        
+        .print-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            font-size: 14pt;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        
+        .print-btn:hover {
+            background: #059669;
+        }
+        
+        .back-btn {
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            font-size: 14pt;
+            cursor: pointer;
+            border-radius: 4px;
+            text-decoration: none;
+        }
+        
+        @media screen {
+            .prescription-page {
+                margin-top: 70px;
+                border: 1px solid #ddd;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+        }
+        
+        .notes-box {
+            background: #fffbeb;
+            border: 1px solid #fcd34d;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+        
+        .notes-box h4 {
+            font-size: 10pt;
+            color: #92400e;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Print Bar -->
+    <div class="print-bar no-print">
+        <button class="print-btn" onclick="window.print()">🖨️ Print Prescription</button>
+        <a href="javascript:history.back()" class="back-btn">← Back</a>
+    </div>
+
+    <div class="prescription-page">
+        <!-- Header -->
+        <div class="header">
+            <div class="clinic-info">
+                <h1>HealthLink Medical</h1>
+                <p>Digital Healthcare Solutions</p>
+                <p>📞 +254 797 754 321 | 📧 info@healthlink.co.ke</p>
+                <p>Nairobi, Kenya</p>
+            </div>
+            <div class="rx-symbol">℞</div>
+        </div>
+        
+        <!-- Prescription Number -->
+        <div class="prescription-number">
+            <strong>PRESCRIPTION #:</strong> {{ prescription.prescription_number }}
+            {% if prescription.is_signed %}
+            <span style="color: #10b981; margin-left: 20px;">✓ VERIFIED</span>
+            {% endif %}
+        </div>
+        
+        <!-- Patient & Doctor Info -->
+        <div class="patient-info">
+            <div class="info-item">
+                <label>Patient:</label>
+                <span>{{ prescription.patient.get_full_name }}</span>
+            </div>
+            <div class="info-item">
+                <label>Prescriber:</label>
+                <span>Dr. {{ prescription.doctor.get_full_name }}</span>
+            </div>
+            <div class="info-item">
+                <label>Date:</label>
+                <span>{{ prescription.created_at|date:"F d, Y" }}</span>
+            </div>
+            <div class="info-item">
+                <label>Valid Until:</label>
+                <span>{{ prescription.valid_until|date:"F d, Y" }}</span>
+            </div>
+        </div>
+        
+        <!-- Diagnosis -->
+        <div class="diagnosis-box">
+            <h3>DIAGNOSIS:</h3>
+            <p>{{ prescription.diagnosis }}</p>
+        </div>
+        
+        <!-- Medications -->
+        <div class="medications-section">
+            <h2>PRESCRIBED MEDICATIONS</h2>
+            
+            <table class="medications-table">
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: 30%;">Medication</th>
+                        <th style="width: 15%;">Dosage</th>
+                        <th style="width: 20%;">Frequency</th>
+                        <th style="width: 15%;">Duration</th>
+                        <th style="width: 15%;">Qty</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <div class="medication-name">{{ item.medication.name }}</div>
+                            <div class="medication-generic">{{ item.medication.generic_name }} - {{ item.medication.strength }}</div>
+                            {% if item.special_instructions %}
+                            <div class="instructions">📝 {{ item.special_instructions }}</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.dosage }}</td>
+                        <td>{{ item.get_frequency_display }}</td>
+                        <td>{{ item.duration_value }} {{ item.duration_unit }}</td>
+                        <td>{{ item.quantity }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: #999;">No medications</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if prescription.notes %}
+        <div class="notes-box">
+            <h4>Additional Instructions:</h4>
+            <p>{{ prescription.notes }}</p>
+        </div>
+        {% endif %}
+        
+        <!-- Signature Section -->
+        <div class="signature-section">
+            <div class="signature-box">
+                {% if prescription.is_signed %}
+                <div class="digital-signature">
+                    <span class="checkmark">✓</span> <strong>Digitally Signed</strong><br>
+                    <small>Signed on: {{ prescription.signed_at|date:"F d, Y H:i" }}</small><br>
+                    <small>By: Dr. {{ prescription.doctor.get_full_name }}</small>
+                </div>
+                {% else %}
+                <div class="signature-line">
+                    Doctor's Signature
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="signature-box" style="text-align: right;">
+                <div class="qr-placeholder">
+                    QR CODE
+                </div>
+                <p style="font-size: 8pt; margin-top: 5px;">Scan to verify</p>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>HealthLink Digital Prescription System</strong></p>
+            <p>This prescription is valid for 30 days from the date of issue unless otherwise specified.</p>
+            <p>Verify at: healthlink.co.ke/prescriptions/verify/?number={{ prescription.prescription_number }}</p>
+            <p style="margin-top: 10px; color: #999;">
+                Generated on {% now "F d, Y H:i" %} | Document ID: {{ prescription.pk }}-{{ prescription.prescription_number }}
+            </p>
+        </div>
+    </div>
+</body>
+</html>

@@ -242,8 +242,23 @@
                         <h4>Describe Your Symptoms</h4>
                     </div>
                     <div class="card-body">
+                        <!-- Use Django form properly -->
                         <form method="post">
                             {% csrf_token %}
+                            
+                            <!-- Display form errors -->
+                            {% if form.errors %}
+                            <div class="alert alert-danger">
+                                <strong>Please correct the errors below:</strong>
+                                <ul>
+                                    {% for field, errors in form.errors.items %}
+                                        {% for error in errors %}
+                                            <li>{{ field|title }}: {{ error }}</li>
+                                        {% endfor %}
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
                             
                             <!-- Symptoms Section -->
                             <div class="symptoms-section">
@@ -252,71 +267,28 @@
                                     <span class="selected-count" id="selectedCount">0 selected</span>
                                 </div>
                                 
-                                <div class="symptoms-grid">
-                                    <!-- Common symptoms - you can customize this list -->
+                                <!-- Django form field for symptoms -->
+                                <div class="symptoms-grid" id="symptomsContainer">
+                                    {% for checkbox in form.symptoms %}
                                     <div class="symptom-item" onclick="toggleSymptom(this)">
-                                        <label class="symptom-checkbox">
-                                            <input type="checkbox" name="symptoms" value="headache">
-                                            <span class="symptom-label">Headache</span>
+                                        {{ checkbox.tag }}
+                                        <label class="symptom-checkbox" for="{{ checkbox.id_for_label }}">
+                                            <span class="symptom-label">{{ checkbox.choice_label }}</span>
                                         </label>
                                     </div>
-                                    <div class="symptom-item" onclick="toggleSymptom(this)">
-                                        <label class="symptom-checkbox">
-                                            <input type="checkbox" name="symptoms" value="fever">
-                                            <span class="symptom-label">Fever</span>
-                                        </label>
+                                    {% empty %}
+                                    <div class="alert alert-warning">
+                                        No symptoms available. Please contact administrator.
                                     </div>
-                                    <div class="symptom-item" onclick="toggleSymptom(this)">
-                                        <label class="symptom-checkbox">
-                                            <input type="checkbox" name="symptoms" value="cough">
-                                            <span class="symptom-label">Cough</span>
-                                        </label>
-                                    </div>
-                                    <div class="symptom-item" onclick="toggleSymptom(this)">
-                                        <label class="symptom-checkbox">
-                                            <input type="checkbox" name="symptoms" value="fatigue">
-                                            <span class="symptom-label">Fatigue</span>
-                                        </label>
-                                    </div>
-                                    <div class="symptom-item" onclick="toggleSymptom(this)">
-                                        <label class="symptom-checkbox">
-                                            <input type="checkbox" name="symptoms" value="nausea">
-                                            <span class="symptom-label">Nausea</span>
-                                        </label>
-                                    </div>
-                                    <div class="symptom-item" onclick="toggleSymptom(this)">
-                                        <label class="symptom-checkbox">
-                                            <input type="checkbox" name="symptoms" value="chest_pain">
-                                            <span class="symptom-label">Chest Pain</span>
-                                        </label>
-                                    </div>
-                                    <div class="symptom-item" onclick="toggleSymptom(this)">
-                                        <label class="symptom-checkbox">
-                                            <input type="checkbox" name="symptoms" value="shortness_of_breath">
-                                            <span class="symptom-label">Shortness of Breath</span>
-                                        </label>
-                                    </div>
-                                    <div class="symptom-item" onclick="toggleSymptom(this)">
-                                        <label class="symptom-checkbox">
-                                            <input type="checkbox" name="symptoms" value="joint_pain">
-                                            <span class="symptom-label">Joint Pain</span>
-                                        </label>
-                                    </div>
+                                    {% endfor %}
                                 </div>
                             </div>
 
                             <!-- Additional Details Section -->
                             <div class="notes-section">
                                 <div class="section-title">Additional Details</div>
-                                <textarea 
-                                    name="additional_notes" 
-                                    class="notes-textarea" 
-                                    placeholder="Please provide any additional details about your symptoms, such as:
-• When did they start?
-• How severe are they?
-• Any triggers or patterns you've noticed?
-• Other relevant health information..."
-                                ></textarea>
+                                <!-- Django form field for notes -->
+                                {{ form.additional_notes }}
                                 <div class="placeholder-text">
                                     The more details you provide, the better our AI can assist you.
                                 </div>
@@ -349,7 +321,7 @@
     }
     
     function updateSelectedCount() {
-        const selected = document.querySelectorAll('input[type="checkbox"]:checked').length;
+        const selected = document.querySelectorAll('#symptomsContainer input[type="checkbox"]:checked').length;
         document.getElementById('selectedCount').textContent = `${selected} selected`;
     }
     
@@ -357,11 +329,21 @@
     document.addEventListener('DOMContentLoaded', function() {
         updateSelectedCount();
         
-        // Add click handlers
-        document.querySelectorAll('.symptom-item').forEach(item => {
+        // Add click handlers to all symptom items
+        document.querySelectorAll('#symptomsContainer .symptom-item').forEach(item => {
             item.addEventListener('click', function() {
                 toggleSymptom(this);
             });
+        });
+        
+        // Form validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const selectedSymptoms = document.querySelectorAll('#symptomsContainer input[type="checkbox"]:checked').length;
+            if (selectedSymptoms === 0) {
+                e.preventDefault();
+                alert('Please select at least one symptom.');
+                return false;
+            }
         });
     });
 </script>

@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+
+{% block title %}Notifications - HealthLink{% endblock %}
+
+{% block content %}
+<style>
+    .notifications-container {
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+    
+    .notifications-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    
+    .notifications-header h1 {
+        color: #1f2937;
+        margin: 0;
+    }
+    
+    .unread-badge {
+        background: #10b981;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+    }
+    
+    .mark-all-btn {
+        background: #4f46e5;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.875rem;
+    }
+    
+    .mark-all-btn:hover {
+        background: #4338ca;
+    }
+    
+    .notification-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .notification-item {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        transition: all 0.2s;
+    }
+    
+    .notification-item:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    
+    .notification-item.unread {
+        background: #f0fdf4;
+        border-left: 4px solid #10b981;
+    }
+    
+    .notification-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+    
+    .icon-appointment { background: #dbeafe; }
+    .icon-message { background: #fef3c7; }
+    .icon-prescription { background: #fce7f3; }
+    .icon-payment { background: #d1fae5; }
+    .icon-general { background: #e5e7eb; }
+    
+    .notification-content {
+        flex: 1;
+    }
+    
+    .notification-title {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+    }
+    
+    .notification-message {
+        color: #6b7280;
+        font-size: 0.9375rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .notification-meta {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        font-size: 0.8125rem;
+        color: #9ca3af;
+    }
+    
+    .notification-link {
+        color: #4f46e5;
+        text-decoration: none;
+    }
+    
+    .notification-link:hover {
+        text-decoration: underline;
+    }
+    
+    .notification-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .mark-read-btn {
+        background: none;
+        border: 1px solid #e5e7eb;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+    
+    .mark-read-btn:hover {
+        background: #f3f4f6;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #9ca3af;
+    }
+    
+    .empty-state svg {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+</style>
+
+<div class="notifications-container">
+    <div class="notifications-header">
+        <div>
+            <h1>Notifications</h1>
+            {% if unread_count > 0 %}
+            <span class="unread-badge">{{ unread_count }} unread</span>
+            {% endif %}
+        </div>
+        {% if unread_count > 0 %}
+        <form method="post" action="{% url 'notifications:mark_all_as_read' %}">
+            {% csrf_token %}
+            <button type="submit" class="mark-all-btn">Mark all as read</button>
+        </form>
+        {% endif %}
+    </div>
+    
+    {% if notifications %}
+    <ul class="notification-list">
+        {% for notification in notifications %}
+        <li class="notification-item {% if not notification.is_read %}unread{% endif %}">
+            <div class="notification-icon 
+                {% if 'appointment' in notification.notification_type %}icon-appointment
+                {% elif notification.notification_type == 'new_message' %}icon-message
+                {% elif notification.notification_type == 'prescription_created' %}icon-prescription
+                {% elif notification.notification_type == 'payment_received' %}icon-payment
+                {% else %}icon-general{% endif %}">
+                {% if 'appointment' in notification.notification_type %}📅
+                {% elif notification.notification_type == 'new_message' %}💬
+                {% elif notification.notification_type == 'prescription_created' %}💊
+                {% elif notification.notification_type == 'payment_received' %}✅
+                {% else %}🔔{% endif %}
+            </div>
+            
+            <div class="notification-content">
+                <div class="notification-title">{{ notification.title }}</div>
+                <div class="notification-message">{{ notification.message }}</div>
+                <div class="notification-meta">
+                    <span>{{ notification.created_at|timesince }} ago</span>
+                    {% if notification.link %}
+                    <a href="{{ notification.link }}" class="notification-link">View details</a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if not notification.is_read %}
+            <div class="notification-actions">
+                <form method="post" action="{% url 'notifications:mark_as_read' notification.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="mark-read-btn">Mark read</button>
+                </form>
+            </div>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty-state">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+        <h3>No notifications yet</h3>
+        <p>You'll see notifications about appointments, messages, and prescriptions here.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

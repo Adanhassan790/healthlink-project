@@ -10,21 +10,106 @@
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-primary text-white py-3">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">
-                            <i class="fas fa-comments me-2"></i>
-                            Conversation with 
-                            {% if user.user_type == 'patient' %}
-                                Dr. {{ conversation.doctor.get_full_name }}
-                            {% else %}
-                                {{ conversation.patient.get_full_name }}
+                        <div class="flex-grow-1">
+                            <h5 class="mb-2">
+                                <i class="fas fa-comments me-2"></i>
+                                {% if user.user_type == 'patient' %}
+                                    Conversation with Dr. {{ conversation.doctor.get_full_name }}
+                                {% else %}
+                                    Conversation with Patient: {{ conversation.patient.get_full_name }}
+                                {% endif %}
+                            </h5>
+            
+                            <!-- DOCTOR SEES PATIENT INFORMATION -->
+                            {% if user.user_type == 'doctor' %}
+                            <div class="patient-info-small text-white-75 mt-2">
+                                <small>
+                                    <i class="fas fa-phone me-1"></i>{{ conversation.patient.phone|default:"No phone" }}
+                                    • 
+                                    <i class="fas fa-envelope me-1"></i>{{ conversation.patient.email }}
+                                    {% if patient_profile and patient_profile.age %}
+                                    • 
+                                    <i class="fas fa-user me-1"></i>{{ patient_profile.age }} years old
+                                    {% endif %}
+                                </small>
+                            </div>
                             {% endif %}
-                        </h5>
-                        <span class="badge bg-light text-dark">
-                            <i class="fas fa-clock me-1"></i>
-                            {{ conversation.updated_at|timesince }} ago
-                        </span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <!-- VIDEO CALL BUTTON -->
+                            <button type="button" class="btn btn-light btn-sm" id="startVideoCall" title="Start Video Call">
+                                <i class="fas fa-video me-1"></i> Video Call
+                            </button>
+                            <span class="badge bg-light text-dark">
+                                <i class="fas fa-clock me-1"></i>
+                                {{ conversation.updated_at|timesince }} ago
+                            </span>
+                        </div>
                     </div>
                 </div>
+                
+                <!-- PATIENT INFORMATION PANEL - ONLY SHOWN TO DOCTORS -->
+                {% if user.user_type == 'doctor' %}
+                <div class="card-body border-bottom bg-light py-3">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-user-injured me-2"></i>Patient Information
+                            </h6>
+                            <div class="row">
+                                <div class="col-6">
+                                    <strong>Full Name:</strong><br>
+                                    {{ conversation.patient.get_full_name }}
+                                </div>
+                                <div class="col-6">
+                                    <strong>Contact:</strong><br>
+                                    {{ conversation.patient.phone|default:"Not provided" }}
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-6">
+                                    <strong>Email:</strong><br>
+                                    {{ conversation.patient.email }}
+                                </div>
+                                {% if patient_profile and patient_profile.age %}
+                                <div class="col-6">
+                                    <strong>Age:</strong><br>
+                                    {{ patient_profile.age }} years
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-stethoscope me-2"></i>Medical Context
+                            </h6>
+                            {% if appointment_symptoms %}
+                            <div class="mb-2">
+                                <strong>Reported Symptoms:</strong>
+                                <p class="mb-1 text-muted small">{{ appointment_symptoms|truncatewords:30 }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if patient_profile and patient_profile.medical_history %}
+                            <div class="mb-2">
+                                <strong>Medical History:</strong>
+                                <p class="mb-1 text-muted small">{{ patient_profile.medical_history|truncatewords:20 }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if conversation.appointment %}
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    Appointment: {{ conversation.appointment.appointment_date|date:"M j, Y g:i A" }}
+                                </small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
                 
                 <div class="card-body message-container p-0">
                     <div class="messages-wrapper" style="height: 400px; overflow-y: auto; padding: 1.5rem;">
@@ -197,6 +282,125 @@ document.addEventListener('DOMContentLoaded', function() {
     if (messagesWrapper) {
         messagesWrapper.scrollTop = messagesWrapper.scrollHeight;
     }
+    
+    // Video call functionality
+    const startVideoCallBtn = document.getElementById('startVideoCall');
+    const conversationId = {{ conversation.id }};
+    
+    startVideoCallBtn.addEventListener('click', function() {
+        startVideoCall();
+    });
+    
+    function startVideoCall() {
+        fetch(`/messaging/call/start/${conversationId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Open video room in new window or redirect
+                window.location.href = `/messaging/call/room/${data.room_id}/`;
+            } else {
+                alert('Failed to start video call: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error starting video call:', error);
+            alert('Failed to start video call. Please try again.');
+        });
+    }
+    
+    // Check for incoming calls periodically
+    function checkIncomingCalls() {
+        console.log('Checking for incoming calls...');
+        fetch(`/messaging/call/check/${conversationId}/`)
+        .then(response => response.json())
+        .then(data => {
+            console.log('Call check response:', data);
+            if (data.has_incoming_call) {
+                console.log('INCOMING CALL DETECTED!');
+                showIncomingCallModal(data);
+            }
+        })
+        .catch(error => console.error('Error checking calls:', error));
+    }
+    
+    // Check immediately on page load
+    checkIncomingCalls();
+    
+    function showIncomingCallModal(callData) {
+        // Create modal if it doesn't exist
+        let modal = document.getElementById('incomingCallModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'incomingCallModal';
+            modal.className = 'modal fade';
+            modal.innerHTML = `
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-body text-center py-5">
+                            <div class="mb-4">
+                                <i class="fas fa-video fa-4x text-primary pulse-animation"></i>
+                            </div>
+                            <h4 class="mb-2">Incoming Video Call</h4>
+                            <p class="text-muted mb-4" id="callerName"></p>
+                            <div class="d-flex justify-content-center gap-3">
+                                <button type="button" class="btn btn-danger btn-lg" id="declineCall">
+                                    <i class="fas fa-phone-slash me-2"></i>Decline
+                                </button>
+                                <button type="button" class="btn btn-success btn-lg" id="acceptCall">
+                                    <i class="fas fa-phone me-2"></i>Accept
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // Add pulse animation style
+            const style = document.createElement('style');
+            style.textContent = `
+                .pulse-animation {
+                    animation: pulse 1.5s infinite;
+                }
+                @keyframes pulse {
+                    0% { transform: scale(1); opacity: 1; }
+                    50% { transform: scale(1.1); opacity: 0.7; }
+                    100% { transform: scale(1); opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        document.getElementById('callerName').textContent = `${callData.caller_name} is calling...`;
+        
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+        
+        document.getElementById('acceptCall').onclick = function() {
+            bsModal.hide();
+            window.location.href = `/messaging/call/room/${callData.room_id}/`;
+        };
+        
+        document.getElementById('declineCall').onclick = function() {
+            fetch(`/messaging/call/decline/${callData.call_id}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            });
+            bsModal.hide();
+        };
+    }
+    
+    // Check for incoming calls every 3 seconds
+    setInterval(checkIncomingCalls, 3000);
 });
 </script>
 {% endblock %}

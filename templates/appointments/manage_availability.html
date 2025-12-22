@@ -1,0 +1,304 @@
+{% extends 'base.html' %}
+{% load appointment_tags %}
+
+{% block title %}Manage Availability - HealthLink{% endblock %}
+
+{% block content %}
+<style>
+    .availability-container {
+        max-width: 1000px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+    
+    .page-header {
+        margin-bottom: 2rem;
+    }
+    
+    .page-header h1 {
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+    
+    .page-header p {
+        color: #6b7280;
+    }
+    
+    .add-slot-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .add-slot-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: flex-end;
+    }
+    
+    .form-group {
+        flex: 1;
+        min-width: 150px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #374151;
+    }
+    
+    .form-group select,
+    .form-group input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 1rem;
+    }
+    
+    .btn-add {
+        background: #10b981;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background 0.3s;
+    }
+    
+    .btn-add:hover {
+        background: #059669;
+    }
+    
+    .day-card {
+        background: white;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .day-header {
+        background: #f3f4f6;
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+        color: #1f2937;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .day-slots {
+        padding: 1rem 1.5rem;
+    }
+    
+    .slot-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem;
+        background: #f9fafb;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+    }
+    
+    .slot-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .slot-time {
+        font-weight: 500;
+        color: #1f2937;
+    }
+    
+    .slot-duration {
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+    
+    .slot-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .btn-toggle {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        border: none;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.3s;
+    }
+    
+    .btn-toggle.active {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .btn-toggle.inactive {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .btn-delete {
+        background: none;
+        border: none;
+        color: #ef4444;
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 4px;
+        transition: background 0.3s;
+    }
+    
+    .btn-delete:hover {
+        background: #fee2e2;
+    }
+    
+    .no-slots {
+        color: #9ca3af;
+        font-style: italic;
+        padding: 1rem 0;
+    }
+    
+    .alert {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    
+    .alert-success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .alert-error {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+</style>
+
+<div class="availability-container">
+    <div class="page-header">
+        <h1>Manage Your Availability</h1>
+        <p>Set your weekly schedule so patients can book appointments with you.</p>
+    </div>
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+    
+    <!-- Add New Slot Form -->
+    <div class="add-slot-card">
+        <h3 style="margin-bottom: 1rem;">Add Availability Slot</h3>
+        <form method="POST" action="{% url 'appointments:add_availability' %}" class="add-slot-form">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="day_of_week">Day</label>
+                <select name="day_of_week" id="day_of_week" required>
+                    {% for day in days %}
+                        <option value="{{ day.0 }}">{{ day.1 }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="start_time">Start Time</label>
+                <input type="time" name="start_time" id="start_time" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="end_time">End Time</label>
+                <input type="time" name="end_time" id="end_time" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="slot_duration">Slot Duration (mins)</label>
+                <select name="slot_duration" id="slot_duration">
+                    <option value="15">15 minutes</option>
+                    <option value="30" selected>30 minutes</option>
+                    <option value="45">45 minutes</option>
+                    <option value="60">1 hour</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn-add">
+                <i class="fas fa-plus"></i> Add Slot
+            </button>
+        </form>
+    </div>
+    
+    <!-- Weekly Schedule -->
+    <h3 style="margin-bottom: 1rem;">Your Weekly Schedule</h3>
+    
+    {% for day in days %}
+        <div class="day-card">
+            <div class="day-header">
+                {{ day.1 }}
+            </div>
+            <div class="day-slots">
+                {% with slots=availability_by_day|default_if_none:"{}"|dictsort:day.0 %}
+                    {% if availability_by_day %}
+                        {% for slot in availability_by_day|get_item:day.0 %}
+                            <div class="slot-item">
+                                <div>
+                                    <span class="slot-time">{{ slot.start_time|time:"g:i A" }} - {{ slot.end_time|time:"g:i A" }}</span>
+                                    <span class="slot-duration">({{ slot.slot_duration }} min slots)</span>
+                                </div>
+                                <div class="slot-actions">
+                                    <button class="btn-toggle {% if slot.is_available %}active{% else %}inactive{% endif %}"
+                                            onclick="toggleSlot({{ slot.id }})"
+                                            id="toggle-{{ slot.id }}">
+                                        {% if slot.is_available %}Available{% else %}Unavailable{% endif %}
+                                    </button>
+                                    <a href="{% url 'appointments:delete_availability' slot.id %}" 
+                                       class="btn-delete"
+                                       onclick="return confirm('Delete this time slot?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <p class="no-slots">No availability set for this day</p>
+                        {% endfor %}
+                    {% else %}
+                        <p class="no-slots">No availability set for this day</p>
+                    {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+<script>
+function toggleSlot(slotId) {
+    fetch(`/appointments/availability/toggle/${slotId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const btn = document.getElementById(`toggle-${slotId}`);
+            if (data.is_available) {
+                btn.textContent = 'Available';
+                btn.classList.remove('inactive');
+                btn.classList.add('active');
+            } else {
+                btn.textContent = 'Unavailable';
+                btn.classList.remove('active');
+                btn.classList.add('inactive');
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

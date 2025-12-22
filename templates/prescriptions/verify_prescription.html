@@ -1,0 +1,275 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Verify Prescription - HealthLink{% endblock %}
+
+{% block content %}
+<style>
+    .verify-container {
+        padding: 2rem 0;
+        min-height: 80vh;
+        background: #f8fafc;
+    }
+    
+    .verify-card {
+        max-width: 600px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .verify-header {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+    }
+    
+    .verify-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    .verify-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .verify-subtitle {
+        opacity: 0.9;
+    }
+    
+    .verify-body {
+        padding: 2rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.2s;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: #10b981;
+    }
+    
+    .form-input::placeholder {
+        color: #9ca3af;
+    }
+    
+    .btn-verify {
+        width: 100%;
+        padding: 1rem;
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    
+    .btn-verify:hover {
+        background: #059669;
+    }
+    
+    .result-box {
+        margin-top: 2rem;
+        padding: 1.5rem;
+        border-radius: 12px;
+    }
+    
+    .result-valid {
+        background: #d1fae5;
+        border: 2px solid #10b981;
+    }
+    
+    .result-invalid {
+        background: #fee2e2;
+        border: 2px solid #ef4444;
+    }
+    
+    .result-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .result-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .result-valid .result-title { color: #065f46; }
+    .result-invalid .result-title { color: #991b1b; }
+    
+    .prescription-info {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #a7f3d0;
+    }
+    
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+    }
+    
+    .info-label {
+        color: #6b7280;
+    }
+    
+    .info-value {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .medications-list {
+        margin-top: 1.5rem;
+    }
+    
+    .med-item {
+        background: white;
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+    }
+    
+    .med-name {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .med-details {
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+    
+    .security-note {
+        margin-top: 1.5rem;
+        padding: 1rem;
+        background: #f3f4f6;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        color: #6b7280;
+        text-align: center;
+    }
+</style>
+
+<div class="verify-container">
+    <div class="container">
+        <div class="verify-card">
+            <div class="verify-header">
+                <div class="verify-icon">🔍</div>
+                <h1 class="verify-title">Verify Prescription</h1>
+                <p class="verify-subtitle">Check if a prescription is valid and authentic</p>
+            </div>
+            
+            <div class="verify-body">
+                <form method="get" action="">
+                    <div class="form-group">
+                        <label class="form-label">Prescription Number</label>
+                        <input type="text" 
+                               name="number" 
+                               class="form-input" 
+                               placeholder="e.g., RX-20250623-001"
+                               value="{{ number|default:'' }}"
+                               required>
+                    </div>
+                    
+                    <button type="submit" class="btn-verify">
+                        🔐 Verify Prescription
+                    </button>
+                </form>
+                
+                {% if verified %}
+                <!-- Valid Prescription -->
+                <div class="result-box result-valid">
+                    <div class="result-icon">✅</div>
+                    <h3 class="result-title">Valid Prescription</h3>
+                    <p style="color: #047857;">This prescription is authentic and was issued by a verified healthcare provider.</p>
+                    
+                    <div class="prescription-info">
+                        <div class="info-row">
+                            <span class="info-label">Prescription #</span>
+                            <span class="info-value">{{ prescription.prescription_number }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Doctor</span>
+                            <span class="info-value">Dr. {{ prescription.doctor.get_full_name }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Patient</span>
+                            <span class="info-value">{{ prescription.patient.get_full_name }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Status</span>
+                            <span class="info-value">{{ prescription.get_status_display }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Issue Date</span>
+                            <span class="info-value">{{ prescription.created_at|date:"M d, Y" }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Valid Until</span>
+                            <span class="info-value">{{ prescription.valid_until|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+                    
+                    {% if prescription.items.exists %}
+                    <div class="medications-list">
+                        <h4 style="font-weight: 600; color: #065f46; margin-bottom: 0.75rem;">Medications:</h4>
+                        {% for item in prescription.items.all %}
+                        <div class="med-item">
+                            <div class="med-name">{{ item.medication.name }}</div>
+                            <div class="med-details">
+                                {{ item.dosage }} - {{ item.get_frequency_display }} for {{ item.duration_value }} {{ item.duration_unit }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                {% elif number and not verified %}
+                <!-- Invalid Prescription -->
+                <div class="result-box result-invalid">
+                    <div class="result-icon">❌</div>
+                    <h3 class="result-title">Prescription Not Found</h3>
+                    <p style="color: #b91c1c;">
+                        We could not find a prescription with number "{{ number }}". 
+                        Please verify the prescription number and try again.
+                    </p>
+                    <p style="color: #991b1b; font-size: 0.875rem; margin-top: 1rem;">
+                        ⚠️ If you believe this is an error, please contact the prescribing healthcare provider.
+                    </p>
+                </div>
+                {% endif %}
+                
+                <div class="security-note">
+                    🔒 This verification system is secured and all lookups are logged for security purposes.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,402 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ prescription.prescription_number }} - HealthLink{% endblock %}
+
+{% block content %}
+<style>
+    .detail-container {
+        padding: 2rem 0;
+        min-height: 80vh;
+        background: #f8fafc;
+    }
+    
+    .back-link {
+        color: #10b981;
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .prescription-header {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .header-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+    }
+    
+    .prescription-number {
+        font-family: monospace;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+    
+    .status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    .status-draft { background: #fef3c7; color: #92400e; }
+    .status-active { background: #d1fae5; color: #065f46; }
+    .status-dispensed { background: #dbeafe; color: #1e40af; }
+    .status-completed { background: #e5e7eb; color: #374151; }
+    .status-cancelled { background: #fee2e2; color: #991b1b; }
+    
+    .header-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .info-item label {
+        display: block;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #6b7280;
+        margin-bottom: 0.25rem;
+    }
+    
+    .info-item span {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #10b981;
+    }
+    
+    .medication-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .medication-table th {
+        text-align: left;
+        padding: 0.75rem;
+        background: #f9fafb;
+        color: #374151;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    .medication-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .medication-name {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .medication-generic {
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+    
+    .instructions-text {
+        font-style: italic;
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+    
+    .diagnosis-box {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .diagnosis-label {
+        font-weight: 600;
+        color: #065f46;
+        margin-bottom: 0.5rem;
+    }
+    
+    .diagnosis-text {
+        color: #047857;
+    }
+    
+    .notes-box {
+        background: #fef3c7;
+        border: 1px solid #fcd34d;
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    
+    .history-item {
+        display: flex;
+        gap: 1rem;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .history-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.875rem;
+    }
+    
+    .history-content {
+        flex: 1;
+    }
+    
+    .history-action {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .history-time {
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+    }
+    
+    .btn-primary { background: #10b981; color: white; }
+    .btn-primary:hover { background: #059669; color: white; }
+    
+    .btn-secondary { background: #6366f1; color: white; }
+    .btn-secondary:hover { background: #4f46e5; color: white; }
+    
+    .btn-outline { background: white; color: #374151; border: 1px solid #d1d5db; }
+    .btn-outline:hover { background: #f3f4f6; color: #1f2937; }
+    
+    .btn-danger { background: #ef4444; color: white; }
+    .btn-danger:hover { background: #dc2626; color: white; }
+    
+    .signed-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: #d1fae5;
+        color: #065f46;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+</style>
+
+<div class="detail-container">
+    <div class="container">
+        <a href="{% url 'prescriptions:prescription_list' %}" class="back-link">
+            ← Back to Prescriptions
+        </a>
+        
+        <!-- Prescription Header -->
+        <div class="prescription-header">
+            <div class="header-top">
+                <div>
+                    <div class="prescription-number">📋 {{ prescription.prescription_number }}</div>
+                    {% if prescription.is_signed %}
+                    <div class="signed-badge" style="margin-top: 0.5rem;">
+                        ✅ Digitally Signed on {{ prescription.signed_at|date:"M d, Y H:i" }}
+                    </div>
+                    {% endif %}
+                </div>
+                <span class="status-badge status-{{ prescription.status }}">
+                    {{ prescription.get_status_display }}
+                </span>
+            </div>
+            
+            <div class="header-info">
+                <div class="info-item">
+                    <label>Patient</label>
+                    <span>{{ prescription.patient.get_full_name|default:prescription.patient.username }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Prescribed By</label>
+                    <span>Dr. {{ prescription.doctor.get_full_name|default:prescription.doctor.username }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Created</label>
+                    <span>{{ prescription.created_at|date:"M d, Y H:i" }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Valid Until</label>
+                    <span>{{ prescription.valid_until|date:"M d, Y" }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Diagnosis & Notes -->
+                <div class="card">
+                    <h3 class="card-title">🩺 Diagnosis & Notes</h3>
+                    
+                    <div class="diagnosis-box">
+                        <div class="diagnosis-label">Diagnosis</div>
+                        <div class="diagnosis-text">{{ prescription.diagnosis }}</div>
+                    </div>
+                    
+                    {% if prescription.notes %}
+                    <div class="notes-box">
+                        <div style="font-weight: 600; color: #92400e; margin-bottom: 0.5rem;">Additional Notes</div>
+                        <div style="color: #a16207;">{{ prescription.notes }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Medications -->
+                <div class="card">
+                    <h3 class="card-title">💊 Prescribed Medications ({{ items|length }})</h3>
+                    
+                    {% if items %}
+                    <table class="medication-table">
+                        <thead>
+                            <tr>
+                                <th>Medication</th>
+                                <th>Dosage</th>
+                                <th>Frequency</th>
+                                <th>Duration</th>
+                                <th>Qty</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    <div class="medication-name">{{ item.medication.name }}</div>
+                                    <div class="medication-generic">{{ item.medication.generic_name }}</div>
+                                </td>
+                                <td>{{ item.dosage }}</td>
+                                <td>{{ item.get_frequency_display }}</td>
+                                <td>{{ item.duration_value }} {{ item.duration_unit }}</td>
+                                <td>{{ item.quantity }}</td>
+                            </tr>
+                            {% if item.special_instructions %}
+                            <tr>
+                                <td colspan="5" class="instructions-text">
+                                    📝 {{ item.special_instructions }}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p style="text-align: center; color: #6b7280; padding: 2rem;">
+                        No medications in this prescription.
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <!-- Actions -->
+                <div class="card">
+                    <h3 class="card-title">⚡ Actions</h3>
+                    
+                    <div class="action-buttons" style="flex-direction: column;">
+                        {% if prescription.status == 'draft' %}
+                        <a href="{% url 'prescriptions:add_items' pk=prescription.pk %}" class="btn btn-primary">
+                            ✏️ Edit Medications
+                        </a>
+                        {% if items %}
+                        <a href="{% url 'prescriptions:sign_prescription' pk=prescription.pk %}" class="btn btn-secondary">
+                            ✍️ Sign & Activate
+                        </a>
+                        {% endif %}
+                        {% endif %}
+                        
+                        <a href="{% url 'prescriptions:download_prescription' pk=prescription.pk %}" class="btn btn-outline" target="_blank">
+                            🖨️ Print / Download
+                        </a>
+                        
+                        {% if prescription.status not in 'dispensed,completed' %}
+                        <a href="{% url 'prescriptions:cancel_prescription' pk=prescription.pk %}" 
+                           class="btn btn-danger"
+                           onclick="return confirm('Are you sure you want to cancel this prescription?')">
+                            ❌ Cancel Prescription
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- History -->
+                <div class="card">
+                    <h3 class="card-title">📜 History</h3>
+                    
+                    {% for entry in history %}
+                    <div class="history-item">
+                        <div class="history-icon">
+                            {% if entry.action == 'created' %}📝{% endif %}
+                            {% if entry.action == 'signed' %}✍️{% endif %}
+                            {% if entry.action == 'viewed' %}👁️{% endif %}
+                            {% if entry.action == 'dispensed' %}💊{% endif %}
+                            {% if entry.action == 'cancelled' %}❌{% endif %}
+                        </div>
+                        <div class="history-content">
+                            <div class="history-action">{{ entry.get_action_display }}</div>
+                            <div class="history-time">
+                                {{ entry.timestamp|date:"M d, Y H:i" }}
+                                {% if entry.performed_by %}
+                                by {{ entry.performed_by.get_full_name|default:entry.performed_by.username }}
+                                {% endif %}
+                            </div>
+                            {% if entry.notes %}
+                            <div style="font-size: 0.875rem; color: #6b7280; margin-top: 0.25rem;">
+                                {{ entry.notes }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p style="color: #6b7280; text-align: center;">No history yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

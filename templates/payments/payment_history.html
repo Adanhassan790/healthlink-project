@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment History - HealthLink{% endblock %}
+
+{% block content %}
+<style>
+    .payment-history-container {
+        max-width: 1000px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+    
+    .page-header {
+        margin-bottom: 2rem;
+    }
+    
+    .page-header h1 {
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+    
+    .page-header p {
+        color: #6b7280;
+    }
+    
+    .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .summary-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .summary-card.success {
+        border-left: 4px solid #10b981;
+    }
+    
+    .summary-card.total {
+        border-left: 4px solid #4f46e5;
+    }
+    
+    .summary-card.count {
+        border-left: 4px solid #f59e0b;
+    }
+    
+    .summary-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+    }
+    
+    .summary-label {
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+    
+    .transactions-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    
+    .transactions-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .transaction-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .transaction-item {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #f3f4f6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .transaction-item:last-child {
+        border-bottom: none;
+    }
+    
+    .transaction-info {
+        flex: 1;
+    }
+    
+    .transaction-doctor {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+    }
+    
+    .transaction-details {
+        display: flex;
+        gap: 1rem;
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+    
+    .transaction-amount {
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: #1f2937;
+    }
+    
+    .transaction-status {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .status-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .status-failed {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .status-cancelled {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+    
+    .receipt-number {
+        font-family: monospace;
+        background: #f3f4f6;
+        padding: 0.125rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+    }
+    
+    .no-transactions {
+        padding: 3rem;
+        text-align: center;
+        color: #9ca3af;
+    }
+    
+    .no-transactions svg {
+        width: 64px;
+        height: 64px;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    @media (max-width: 768px) {
+        .transaction-item {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .transaction-amount {
+            margin-top: 0.5rem;
+        }
+    }
+</style>
+
+<div class="payment-history-container">
+    <div class="page-header">
+        <h1>Payment History</h1>
+        <p>View all your payment transactions</p>
+    </div>
+    
+    <div class="summary-cards">
+        <div class="summary-card success">
+            <div class="summary-value">KSH {{ total_paid|floatformat:0 }}</div>
+            <div class="summary-label">Total Amount Paid</div>
+        </div>
+        <div class="summary-card total">
+            <div class="summary-value">{{ successful_count }}</div>
+            <div class="summary-label">Successful Payments</div>
+        </div>
+        <div class="summary-card count">
+            <div class="summary-value">{{ total_transactions }}</div>
+            <div class="summary-label">Total Transactions</div>
+        </div>
+    </div>
+    
+    <div class="transactions-card">
+        <div class="transactions-header">All Transactions</div>
+        
+        {% if transactions %}
+        <ul class="transaction-list">
+            {% for transaction in transactions %}
+            <li class="transaction-item">
+                <div class="transaction-info">
+                    <div class="transaction-doctor">
+                        Dr. {{ transaction.appointment.doctor.get_full_name }}
+                    </div>
+                    <div class="transaction-details">
+                        <span>{{ transaction.created_at|date:"M j, Y g:i A" }}</span>
+                        <span>📱 {{ transaction.phone_number }}</span>
+                        {% if transaction.mpesa_receipt_number %}
+                        <span class="receipt-number">{{ transaction.mpesa_receipt_number }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <div class="transaction-amount">KSH {{ transaction.amount|floatformat:0 }}</div>
+                    <span class="transaction-status status-{{ transaction.status }}">
+                        {{ transaction.status }}
+                    </span>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="no-transactions">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+            </svg>
+            <h3>No transactions yet</h3>
+            <p>Your payment history will appear here after you make a payment.</p>
+            <a href="{% url 'appointments:doctor_list' %}" class="btn btn-primary mt-3">Book an Appointment</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

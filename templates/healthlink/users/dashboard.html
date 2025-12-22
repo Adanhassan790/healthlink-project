@@ -1,63 +1,749 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2>Welcome, {{ user.username }}!</h2>
+<style>
+    /* Dashboard Saved Assessments Styles */
+    .dashboard-section {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
     
+    .assessments-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .assessment-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1rem;
+        background: #f9fafb;
+        transition: transform 0.2s ease;
+    }
+    
+    .assessment-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .assessment-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .confidence-badge {
+        background: #dcfce7;
+        color: #166534;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    .assessment-body {
+        font-size: 0.9rem;
+    }
+    
+    .assessment-body p {
+        margin-bottom: 0.5rem;
+        color: #4b5563;
+    }
+    
+    .explanation {
+        background: #fef3c7;
+        padding: 0.75rem;
+        border-radius: 6px;
+        margin: 0.75rem 0;
+        border-left: 3px solid #f59e0b;
+    }
+    
+    .assessment-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8rem;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #6b7280;
+    }
+    
+    .empty-state i {
+        color: #d1d5db;
+        margin-bottom: 1rem;
+    }
+    
+    /* Modal Styles */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .modal-content {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #6b7280;
+    }
+    
+    .symptom-tag {
+        background: #e0f2fe;
+        color: #0369a1;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        margin: 0 5px 5px 0;
+        display: inline-block;
+    }
+</style>
+
+<div class="container mt-4">
+    <h2>Welcome, {{ user.get_full_name|default:user.username }}!</h2>
+    
+    <!-- Stats Cards -->
+    <div class="row mt-4 mb-4">
+        {% if user.user_type == 'patient' %}
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card text-center" style="border-left: 4px solid #4f46e5;">
+                <div class="card-body py-3">
+                    <h3 class="mb-0" style="color: #4f46e5;">{{ stats.total_appointments|default:0 }}</h3>
+                    <small class="text-muted">Total Appointments</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card text-center" style="border-left: 4px solid #10b981;">
+                <div class="card-body py-3">
+                    <h3 class="mb-0" style="color: #10b981;">{{ stats.completed_appointments|default:0 }}</h3>
+                    <small class="text-muted">Completed</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card text-center" style="border-left: 4px solid #f59e0b;">
+                <div class="card-body py-3">
+                    <h3 class="mb-0" style="color: #f59e0b;">{{ stats.upcoming_count|default:0 }}</h3>
+                    <small class="text-muted">Upcoming</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card text-center" style="border-left: 4px solid #8b5cf6;">
+                <div class="card-body py-3">
+                    <h3 class="mb-0" style="color: #8b5cf6;">{{ stats.prescription_count|default:0 }}</h3>
+                    <small class="text-muted">Prescriptions</small>
+                </div>
+            </div>
+        </div>
+        {% elif user.user_type == 'doctor' %}
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card text-center" style="border-left: 4px solid #4f46e5;">
+                <div class="card-body py-3">
+                    <h3 class="mb-0" style="color: #4f46e5;">{{ stats.total_patients|default:0 }}</h3>
+                    <small class="text-muted">Total Patients</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card text-center" style="border-left: 4px solid #10b981;">
+                <div class="card-body py-3">
+                    <h3 class="mb-0" style="color: #10b981;">{{ stats.today_appointments|default:0 }}</h3>
+                    <small class="text-muted">Today's Appointments</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card text-center" style="border-left: 4px solid #f59e0b;">
+                <div class="card-body py-3">
+                    <h3 class="mb-0" style="color: #f59e0b;">{{ stats.upcoming_count|default:0 }}</h3>
+                    <small class="text-muted">Upcoming</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card text-center" style="border-left: 4px solid #8b5cf6;">
+                <div class="card-body py-3">
+                    <h3 class="mb-0" style="color: #8b5cf6;">{{ stats.total_prescriptions|default:0 }}</h3>
+                    <small class="text-muted">Prescriptions Written</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="mb-3">Quick Actions</h5>
+            <div class="d-flex flex-wrap gap-2">
+                {% if user.user_type == 'patient' %}
+                <a href="{% url 'appointments:doctor_list' %}" class="btn btn-primary">Find a Doctor</a>
+                <a href="{% url 'triage:triage' %}" class="btn btn-outline-primary">AI Symptom Checker</a>
+                <a href="{% url 'prescriptions:my_prescriptions' %}" class="btn btn-outline-secondary">My Prescriptions</a>
+                <a href="{% url 'payments:payment_history' %}" class="btn btn-outline-secondary">Payment History</a>
+                {% elif user.user_type == 'doctor' %}
+                <a href="{% url 'appointments:my_appointments' %}" class="btn btn-primary">View Schedule</a>
+                <a href="{% url 'appointments:manage_availability' %}" class="btn btn-outline-primary">Set Availability</a>
+                <a href="{% url 'prescriptions:create_prescription' %}" class="btn btn-outline-secondary">Write Prescription</a>
+                <a href="{% url 'messaging:conversation_list' %}" class="btn btn-outline-secondary">Messages</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Upcoming Appointments Alert -->
+    {% if upcoming_appointments %}
+    <div class="alert alert-info mb-4" style="border-left: 4px solid #3b82f6;">
+        <h5 class="mb-2">Upcoming Appointments</h5>
+        {% for appt in upcoming_appointments %}
+        <div class="d-flex justify-content-between align-items-center py-2 {% if not forloop.last %}border-bottom{% endif %}">
+            <div>
+                <strong>
+                    {% if user.user_type == 'patient' %}Dr. {{ appt.doctor.get_full_name }}{% else %}{{ appt.patient.get_full_name }}{% endif %}
+                </strong>
+                <small class="text-muted ms-2">{{ appt.appointment_date|date:"M d, Y" }} at {{ appt.appointment_date|time:"g:i A" }}</small>
+            </div>
+            <a href="{% url 'appointments:my_appointments' %}" class="btn btn-sm btn-outline-primary">View</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <div class="row mt-4">
         <div class="col-md-8">
+            <!-- Appointments Section - Enhanced with clickable cards -->
             <div class="card">
-                <div class="card-header">
-                    <h5>Recent Appointments</h5>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">📅 My Appointments</h5>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary filter-btn active" data-filter="all">All</button>
+                        <button class="btn btn-sm btn-outline-secondary filter-btn" data-filter="upcoming">Upcoming</button>
+                        <button class="btn btn-sm btn-outline-secondary filter-btn" data-filter="completed">Completed</button>
+                    </div>
                 </div>
-                <div class="card-body">
+                <div class="card-body" style="max-height: 500px; overflow-y: auto;">
                     {% if appointments %}
-                        <div class="list-group">
+                        <div class="appointments-list">
                             {% for appointment in appointments %}
-                            <div class="list-group-item">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1">
-                                        {% if user.user_type == 'patient' %}
-                                            Dr. {{ appointment.doctor.get_full_name }}
-                                        {% else %}
-                                            Patient: {{ appointment.patient.get_full_name }}
-                                        {% endif %}
-                                    </h6>
-                                    <span class="badge bg-{% if appointment.status == 'completed' %}success{% elif appointment.status == 'confirmed' %}primary{% else %}warning{% endif %}">
-                                        {{ appointment.status|title }}
-                                    </span>
+                            <div class="appointment-item {% if appointment.status == 'completed' %}completed{% else %}upcoming{% endif %}" 
+                                 onclick="showAppointmentDetails({{ appointment.id }})"
+                                 style="cursor: pointer; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem; margin-bottom: 0.75rem; transition: all 0.2s; background: white;">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="avatar" style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #059669); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.1rem;">
+                                            {% if user.user_type == 'patient' %}
+                                                {{ appointment.doctor.first_name|slice:":1" }}{{ appointment.doctor.last_name|slice:":1" }}
+                                            {% else %}
+                                                {{ appointment.patient.first_name|slice:":1" }}{{ appointment.patient.last_name|slice:":1" }}
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0" style="font-weight: 600; color: #1f2937;">
+                                                {% if user.user_type == 'patient' %}
+                                                    Dr. {{ appointment.doctor.get_full_name }}
+                                                {% else %}
+                                                    {{ appointment.patient.get_full_name }}
+                                                {% endif %}
+                                            </h6>
+                                            <small style="color: #6b7280;">{{ appointment.specialty.name }}</small>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge" style="padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.75rem;
+                                            {% if appointment.status == 'completed' %}background: #d1fae5; color: #065f46;
+                                            {% elif appointment.status == 'confirmed' %}background: #dbeafe; color: #1e40af;
+                                            {% elif appointment.status == 'pending' %}background: #fef3c7; color: #92400e;
+                                            {% else %}background: #fee2e2; color: #991b1b;{% endif %}">
+                                            {{ appointment.status|title }}
+                                        </span>
+                                        <div style="font-size: 0.8rem; color: #6b7280; margin-top: 0.25rem;">
+                                            {{ appointment.appointment_date|date:"M d, Y" }}
+                                        </div>
+                                        <div style="font-size: 0.75rem; color: #9ca3af;">
+                                            {{ appointment.appointment_date|time:"g:i A" }}
+                                        </div>
+                                    </div>
                                 </div>
-                                <p class="mb-1">Specialty: {{ appointment.specialty.name }}</p>
-                                <small>Date: {{ appointment.appointment_date }}</small>
+                                
+                                <!-- Quick action icons -->
+                                <div class="mt-2 d-flex gap-2" onclick="event.stopPropagation();">
+                                    <a href="{% url 'messaging:start_conversation' appointment.id %}" 
+                                       class="btn btn-sm" style="background: #e0e7ff; color: #4338ca; border: none; font-size: 0.75rem;"
+                                       title="Message">
+                                        💬 Message
+                                    </a>
+                                    {% if appointment.status == 'completed' %}
+                                        {% if user.user_type == 'doctor' %}
+                                        <a href="{% url 'prescriptions:create_prescription' %}?patient={{ appointment.patient.id }}&appointment={{ appointment.id }}" 
+                                           class="btn btn-sm" style="background: #d1fae5; color: #065f46; border: none; font-size: 0.75rem;">
+                                            📋 Prescribe
+                                        </a>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
                             </div>
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p>No appointments yet.</p>
-                        {% if user.user_type == 'patient' %}
-                        <a href="{% url 'appointments:doctor_list' %}" class="btn btn-primary">Find a Doctor</a>
-                        {% endif %}
+                        <div class="text-center py-4">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">📅</div>
+                            <p class="text-muted">No appointments yet.</p>
+                            {% if user.user_type == 'patient' %}
+                            <a href="{% url 'appointments:doctor_list' %}" class="btn btn-primary">Find a Doctor</a>
+                            {% endif %}
+                        </div>
                     {% endif %}
                 </div>
             </div>
+            
+            <!-- Recent Prescriptions Section -->
+            {% if prescriptions %}
+            <div class="card mt-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">💊 Recent Prescriptions</h5>
+                    <a href="{% if user.user_type == 'patient' %}{% url 'prescriptions:my_prescriptions' %}{% else %}{% url 'prescriptions:prescription_list' %}{% endif %}" 
+                       class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for prescription in prescriptions %}
+                        <a href="{% if user.user_type == 'patient' %}{% url 'prescriptions:patient_view' pk=prescription.pk %}{% else %}{% url 'prescriptions:prescription_detail' pk=prescription.pk %}{% endif %}" 
+                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                           style="border-radius: 8px; margin-bottom: 0.5rem;">
+                            <div>
+                                <strong style="font-family: monospace;">{{ prescription.prescription_number }}</strong>
+                                <br>
+                                <small class="text-muted">
+                                    {% if user.user_type == 'patient' %}
+                                        Dr. {{ prescription.doctor.get_full_name }}
+                                    {% else %}
+                                        {{ prescription.patient.get_full_name }}
+                                    {% endif %}
+                                    - {{ prescription.created_at|date:"M d, Y" }}
+                                </small>
+                            </div>
+                            <span class="badge" style="
+                                {% if prescription.status == 'active' %}background: #d1fae5; color: #065f46;
+                                {% elif prescription.status == 'dispensed' %}background: #dbeafe; color: #1e40af;
+                                {% else %}background: #e5e7eb; color: #374151;{% endif %}
+                                padding: 0.35rem 0.75rem; border-radius: 20px;">
+                                {{ prescription.get_status_display }}
+                            </span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
         
         <div class="col-md-4">
             <div class="card">
                 <div class="card-header">
-                    <h5>Quick Actions</h5>
+                    <h5>⚡ Quick Actions</h5>
                 </div>
                 <div class="card-body">
                     {% if user.user_type == 'patient' %}
-                    <a href="{% url 'appointments:doctor_list' %}" class="btn btn-outline-primary w-100 mb-2">Find Doctors</a>
-                    <a href="{% url 'profile' %}" class="btn btn-outline-secondary w-100 mb-2">My Profile</a>
+                    <a href="{% url 'appointments:doctor_list' %}" class="btn btn-outline-primary w-100 mb-2">🔍 Find Doctors</a>
+                    <a href="{% url 'triage:triage' %}" class="btn btn-outline-success w-100 mb-2">🤖 AI Symptom Checker</a>
+                    <a href="{% url 'prescriptions:my_prescriptions' %}" class="btn btn-outline-info w-100 mb-2">💊 My Prescriptions</a>
+                    <a href="{% url 'appointments:my_appointments' %}" class="btn btn-outline-secondary w-100 mb-2">📅 All Appointments</a>
+                    <a href="{% url 'profile' %}" class="btn btn-outline-dark w-100 mb-2">👤 My Profile</a>
                     {% elif user.user_type == 'doctor' %}
-                    <a href="{% url 'appointments:my_appointments' %}" class="btn btn-outline-primary w-100 mb-2">My Appointments</a>
-                    <a href="{% url 'profile' %}" class="btn btn-outline-secondary w-100 mb-2">My Profile</a>
+                    <a href="{% url 'appointments:my_appointments' %}" class="btn btn-outline-primary w-100 mb-2">📅 My Appointments</a>
+                    <a href="{% url 'prescriptions:prescription_list' %}" class="btn btn-outline-success w-100 mb-2">📋 Prescriptions</a>
+                    <a href="{% url 'prescriptions:create_prescription' %}" class="btn btn-outline-info w-100 mb-2">✏️ New Prescription</a>
+                    <a href="{% url 'profile' %}" class="btn btn-outline-dark w-100 mb-2">👤 My Profile</a>
                     {% endif %}
+                </div>
+            </div>
+            
+            <!-- Stats Card -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5>📊 Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Total Appointments</span>
+                        <strong>{{ appointments|length }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Completed</span>
+                        <strong style="color: #10b981;">
+                            {% with completed=0 %}
+                            {% for apt in appointments %}{% if apt.status == 'completed' %}{% with completed=completed|add:1 %}{% endwith %}{% endif %}{% endfor %}
+                            {{ appointments|length }}
+                            {% endwith %}
+                        </strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Prescriptions</span>
+                        <strong style="color: #6366f1;">{{ prescriptions|length }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Saved Assessments Section (for patients only) - Below appointments -->
+    {% if user.user_type == 'patient' %}
+    <div class="dashboard-section mt-4" id="saved-assessments">
+        <h3>🤖 Saved AI Assessments</h3>
+        
+        {% if saved_assessments %}
+        <div class="assessments-grid">
+            {% for assessment in saved_assessments %}
+            <div class="assessment-card">
+                <div class="assessment-header">
+                    <h5>{{ assessment.predicted_specialty }}</h5>
+                    <span class="confidence-badge">{{ assessment.confidence }}% confidence</span>
+                </div>
+                <div class="assessment-body">
+                    <p><strong>Symptoms:</strong> {{ assessment.symptoms_text|truncatewords:20 }}</p>
+                    <p><strong>Saved:</strong> {{ assessment.created_at|date:"M d, Y" }}</p>
+                    
+                    {% if assessment.explanation %}
+                    <div class="explanation">
+                        <strong>AI Explanation:</strong>
+                        <p>{{ assessment.explanation|truncatewords:30 }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="assessment-actions">
+                        <a href="{% url 'appointments:doctor_list' %}?specialty={{ assessment.predicted_specialty }}" 
+                           class="btn btn-sm btn-primary">
+                            Book Appointment
+                        </a>
+                        <button onclick="viewAssessmentDetails('{{ assessment.id }}', '{{ assessment.predicted_specialty }}', '{{ assessment.confidence }}', '{{ assessment.symptoms_text }}', '{{ assessment.explanation|default:""|escapejs }}', '{{ assessment.created_at|date:"M d, Y" }}')" 
+                                class="btn btn-sm btn-secondary">
+                            View Details
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🤖</div>
+            <h4>No saved assessments yet</h4>
+            <p>Use the AI Symptom Checker and save results to see them here</p>
+            <a href="{% url 'triage:triage' %}" class="btn btn-primary">
+                Try AI Symptom Checker
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Appointment Details Modal -->
+<div class="modal-overlay" id="appointmentModal">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h4>📅 Appointment Details</h4>
+            <button class="modal-close" onclick="closeAppointmentModal()">&times;</button>
+        </div>
+        
+        <div class="modal-body" id="appointmentModalBody">
+            <!-- Content loaded dynamically -->
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Assessment Details Modal -->
+<div class="modal-overlay" id="assessmentModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h4 id="modalSpecialty">Specialty Details</h4>
+            <button class="modal-close" onclick="closeAssessmentModal()">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+            <div class="mb-3">
+                <h5 id="modalTitle"></h5>
+                <span class="confidence-badge" id="modalConfidence"></span>
+            </div>
+            
+            <div class="mb-3">
+                <h6>Symptoms:</h6>
+                <div id="modalSymptoms"></div>
+            </div>
+            
+            <div class="mb-3">
+                <h6>AI Explanation:</h6>
+                <p id="modalExplanation" class="explanation"></p>
+            </div>
+            
+            <div class="mb-3">
+                <p><strong>Saved on:</strong> <span id="modalDate"></span></p>
+            </div>
+            
+            <div class="text-center mt-4">
+                <button onclick="closeAssessmentModal()" class="btn btn-secondary">Close</button>
+                <a href="#" id="modalBookBtn" class="btn btn-primary">Book Appointment</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Function to show assessment details in modal
+function viewAssessmentDetails(assessmentId, specialty, confidence, symptomsText, explanation, date) {
+    // Parse symptoms (they're stored as comma-separated string)
+    const symptoms = symptomsText.split(',').map(s => s.trim());
+    
+    // Update modal content
+    document.getElementById('modalTitle').textContent = specialty;
+    document.getElementById('modalSpecialty').textContent = specialty + ' Assessment Details';
+    document.getElementById('modalConfidence').textContent = confidence + '% confidence';
+    document.getElementById('modalDate').textContent = date;
+    
+    // Update symptoms
+    const symptomsContainer = document.getElementById('modalSymptoms');
+    symptomsContainer.innerHTML = '';
+    symptoms.forEach(symptom => {
+        if (symptom) {
+            const tag = document.createElement('span');
+            tag.className = 'symptom-tag';
+            tag.textContent = symptom;
+            symptomsContainer.appendChild(tag);
+        }
+    });
+    
+    // Update explanation
+    document.getElementById('modalExplanation').textContent = explanation || 'No additional explanation available.';
+    
+    // Update book appointment link
+    const bookBtn = document.getElementById('modalBookBtn');
+    bookBtn.href = '/appointments/doctors/?specialty=' + encodeURIComponent(specialty);
+    
+    // Show modal
+    document.getElementById('assessmentModal').style.display = 'flex';
+}
+
+// Function to close modal
+function closeAssessmentModal() {
+    document.getElementById('assessmentModal').style.display = 'none';
+}
+
+// Close modal when clicking outside
+document.getElementById('assessmentModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeAssessmentModal();
+    }
+});
+
+// ==================== APPOINTMENT MODAL ====================
+
+// Store appointment data for modal
+const appointmentData = {
+    {% for appointment in appointments %}
+    {{ appointment.id }}: {
+        id: {{ appointment.id }},
+        status: "{{ appointment.status }}",
+        date: "{{ appointment.appointment_date|date:'F d, Y' }}",
+        time: "{{ appointment.appointment_date|time:'g:i A' }}",
+        specialty: "{{ appointment.specialty.name }}",
+        symptoms: "{{ appointment.symptoms|default:'Not specified'|escapejs }}",
+        {% if user.user_type == 'patient' %}
+        doctorName: "Dr. {{ appointment.doctor.get_full_name }}",
+        doctorEmail: "{{ appointment.doctor.email|default:'' }}",
+        doctorPhone: "{{ appointment.doctor.phone|default:'' }}",
+        doctorInitials: "{{ appointment.doctor.first_name|slice:':1' }}{{ appointment.doctor.last_name|slice:':1' }}",
+        {% else %}
+        patientName: "{{ appointment.patient.get_full_name }}",
+        patientEmail: "{{ appointment.patient.email|default:'' }}",
+        patientPhone: "{{ appointment.patient.phone|default:'' }}",
+        patientInitials: "{{ appointment.patient.first_name|slice:':1' }}{{ appointment.patient.last_name|slice:':1' }}",
+        {% endif %}
+        messageUrl: "{% url 'messaging:start_conversation' appointment.id %}",
+        {% if user.user_type == 'doctor' and appointment.status == 'completed' %}
+        prescribeUrl: "{% url 'prescriptions:create_prescription' %}?patient={{ appointment.patient.id }}&appointment={{ appointment.id }}",
+        {% endif %}
+    },
+    {% endfor %}
+};
+
+function showAppointmentDetails(appointmentId) {
+    const apt = appointmentData[appointmentId];
+    if (!apt) return;
+    
+    const isPatient = '{{ user.user_type }}' === 'patient';
+    const personName = isPatient ? apt.doctorName : apt.patientName;
+    const personInitials = isPatient ? apt.doctorInitials : apt.patientInitials;
+    const personEmail = isPatient ? apt.doctorEmail : apt.patientEmail;
+    const personPhone = isPatient ? apt.doctorPhone : apt.patientPhone;
+    
+    let statusBadge = '';
+    if (apt.status === 'completed') {
+        statusBadge = '<span style="background: #d1fae5; color: #065f46; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.875rem;">✅ Completed</span>';
+    } else if (apt.status === 'confirmed') {
+        statusBadge = '<span style="background: #dbeafe; color: #1e40af; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.875rem;">✓ Confirmed</span>';
+    } else if (apt.status === 'pending') {
+        statusBadge = '<span style="background: #fef3c7; color: #92400e; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.875rem;">⏳ Pending</span>';
+    } else {
+        statusBadge = '<span style="background: #fee2e2; color: #991b1b; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.875rem;">❌ Cancelled</span>';
+    }
+    
+    let html = `
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #059669); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.5rem; margin: 0 auto 1rem;">
+                ${personInitials}
+            </div>
+            <h4 style="margin-bottom: 0.5rem;">${personName}</h4>
+            <p style="color: #6b7280; margin-bottom: 0.5rem;">${apt.specialty}</p>
+            ${statusBadge}
+        </div>
+        
+        <div style="background: #f9fafb; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <label style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase;">Date</label>
+                    <p style="font-weight: 600; margin: 0;">📅 ${apt.date}</p>
+                </div>
+                <div>
+                    <label style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase;">Time</label>
+                    <p style="font-weight: 600; margin: 0;">🕐 ${apt.time}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+            <label style="font-size: 0.875rem; color: #6b7280; font-weight: 600;">Symptoms/Reason</label>
+            <div style="background: #fef3c7; border-left: 3px solid #f59e0b; padding: 0.75rem; border-radius: 4px; margin-top: 0.5rem;">
+                ${apt.symptoms}
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+            <label style="font-size: 0.875rem; color: #6b7280; font-weight: 600;">Contact Info</label>
+            <div style="margin-top: 0.5rem;">
+                ${personEmail ? `<p style="margin: 0.25rem 0;"><strong>📧 Email:</strong> ${personEmail}</p>` : ''}
+                ${personPhone ? `<p style="margin: 0.25rem 0;"><strong>📞 Phone:</strong> ${personPhone}</p>` : ''}
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center;">
+            <a href="${apt.messageUrl}" class="btn btn-primary" style="background: #10b981; border: none;">
+                💬 Message ${isPatient ? 'Doctor' : 'Patient'}
+            </a>
+            <a href="${apt.messageUrl}?video=1" class="btn btn-primary" style="background: #8b5cf6; border: none;">
+                📹 Video Call
+            </a>
+            ${apt.prescribeUrl ? `<a href="${apt.prescribeUrl}" class="btn btn-success" style="background: #6366f1; border: none;">📋 Write Prescription</a>` : ''}
+            <button onclick="closeAppointmentModal()" class="btn btn-secondary">Close</button>
+        </div>
+    `;
+    
+    document.getElementById('appointmentModalBody').innerHTML = html;
+    document.getElementById('appointmentModal').style.display = 'flex';
+}
+
+function closeAppointmentModal() {
+    document.getElementById('appointmentModal').style.display = 'none';
+}
+
+// Close modals when clicking outside
+document.getElementById('appointmentModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeAppointmentModal();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeAssessmentModal();
+        closeAppointmentModal();
+    }
+});
+
+// ==================== APPOINTMENT FILTER ====================
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const filter = this.dataset.filter;
+        
+        // Update active button
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        // Filter appointments
+        document.querySelectorAll('.appointment-item').forEach(item => {
+            if (filter === 'all') {
+                item.style.display = 'block';
+            } else if (filter === 'upcoming' && !item.classList.contains('completed')) {
+                item.style.display = 'block';
+            } else if (filter === 'completed' && item.classList.contains('completed')) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+});
+
+// Hover effect for appointment items
+document.querySelectorAll('.appointment-item').forEach(item => {
+    item.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-2px)';
+        this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+        this.style.borderColor = '#10b981';
+    });
+    item.addEventListener('mouseleave', function() {
+        this.style.transform = 'translateY(0)';
+        this.style.boxShadow = 'none';
+        this.style.borderColor = '#e5e7eb';
+    });
+});
+</script>
 {% endblock %}

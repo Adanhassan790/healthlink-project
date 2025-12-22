@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+
+{% block title %}Leave a Review - HealthLink{% endblock %}
+
+{% block content %}
+<style>
+    .review-container {
+        max-width: 600px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+    
+    .review-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        padding: 2rem;
+    }
+    
+    .doctor-summary {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+    
+    .doctor-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: #4f46e5;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+    
+    .doctor-info h3 {
+        margin: 0 0 0.25rem;
+        color: #1f2937;
+    }
+    
+    .doctor-info p {
+        margin: 0;
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
+    
+    .rating-section {
+        margin-bottom: 1.5rem;
+    }
+    
+    .rating-section label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: #1f2937;
+    }
+    
+    .star-rating {
+        display: flex;
+        gap: 0.5rem;
+        flex-direction: row-reverse;
+        justify-content: flex-end;
+    }
+    
+    .star-rating input {
+        display: none;
+    }
+    
+    .star-rating label {
+        font-size: 2.5rem;
+        color: #d1d5db;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+    
+    .star-rating label:hover,
+    .star-rating label:hover ~ label,
+    .star-rating input:checked ~ label {
+        color: #fbbf24;
+    }
+    
+    .comment-section {
+        margin-bottom: 1.5rem;
+    }
+    
+    .comment-section label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #1f2937;
+    }
+    
+    .comment-section textarea {
+        width: 100%;
+        min-height: 120px;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 1rem;
+        resize: vertical;
+    }
+    
+    .comment-section textarea:focus {
+        outline: none;
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+    
+    .submit-btn {
+        width: 100%;
+        padding: 1rem;
+        background: #4f46e5;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    
+    .submit-btn:hover {
+        background: #4338ca;
+    }
+    
+    .cancel-link {
+        display: block;
+        text-align: center;
+        margin-top: 1rem;
+        color: #6b7280;
+        text-decoration: none;
+    }
+    
+    .cancel-link:hover {
+        color: #1f2937;
+    }
+</style>
+
+<div class="review-container">
+    <div class="review-card">
+        <h2 style="margin-bottom: 1.5rem; text-align: center;">Rate Your Experience</h2>
+        
+        <div class="doctor-summary">
+            <div class="doctor-avatar">
+                {{ appointment.doctor.first_name|first }}{{ appointment.doctor.last_name|first }}
+            </div>
+            <div class="doctor-info">
+                <h3>Dr. {{ appointment.doctor.get_full_name }}</h3>
+                <p>{{ appointment.specialty.name }}</p>
+                <p>{{ appointment.appointment_date|date:"F j, Y" }}</p>
+            </div>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="rating-section">
+                <label>How would you rate your experience?</label>
+                <div class="star-rating">
+                    <input type="radio" id="star5" name="rating" value="5" required>
+                    <label for="star5" title="Excellent">★</label>
+                    <input type="radio" id="star4" name="rating" value="4">
+                    <label for="star4" title="Very Good">★</label>
+                    <input type="radio" id="star3" name="rating" value="3">
+                    <label for="star3" title="Good">★</label>
+                    <input type="radio" id="star2" name="rating" value="2">
+                    <label for="star2" title="Fair">★</label>
+                    <input type="radio" id="star1" name="rating" value="1">
+                    <label for="star1" title="Poor">★</label>
+                </div>
+            </div>
+            
+            <div class="comment-section">
+                <label for="comment">Share your experience (optional)</label>
+                <textarea name="comment" id="comment" 
+                          placeholder="Tell us about your consultation with this doctor..."></textarea>
+            </div>
+            
+            <button type="submit" class="submit-btn">Submit Review</button>
+        </form>
+        
+        <a href="{% url 'appointments:my_appointments' %}" class="cancel-link">Skip for now</a>
+    </div>
+</div>
+{% endblock %}

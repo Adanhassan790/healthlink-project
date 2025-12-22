@@ -20,12 +20,12 @@
                     <div class="doctor-summary mb-4 p-3 bg-light rounded">
                         <div class="d-flex align-items-center">
                             <div class="doctor-avatar me-3">
-                                👨‍⚕️
+                                
                             </div>
                             <div>
                                 <h5 class="mb-1">Dr. {{ doctor.user.get_full_name }}</h5>
                                 <p class="text-tertiary mb-0">{{ doctor.specialization }}</p>
-                                <p class="text-tertiary mb-0">Consultation Fee: ${{ doctor.consultation_fee }}</p>
+                                <p class="text-tertiary mb-0">Consultation Fee: ksh {{ doctor.consultation_fee }}</p>
                             </div>
                         </div>
                     </div>
@@ -58,11 +58,17 @@
                                 <option value="">Select a date</option>
                                 {% for slot in available_slots %}
                                 <option value="{{ slot.display_date }}" 
+                                        data-times="{{ slot.time_slots|length }}"
                                         {% if appointment_date == slot.display_date %}selected{% endif %}>
-                                    {{ slot.display_text }}
+                                    {{ slot.day_name }}, {{ slot.display_text }}
                                 </option>
                                 {% endfor %}
                             </select>
+                            {% if not available_slots %}
+                            <div class="alert alert-info mt-2">
+                                <small>This doctor hasn't set their availability yet. Default time slots will be shown.</small>
+                            </div>
+                            {% endif %}
                         </div>
 
                         <!-- Appointment Time -->
@@ -71,23 +77,15 @@
                                 <strong>Preferred Time *</strong>
                             </label>
                             <select name="appointment_time" id="appointment_time" class="form-select" required>
-                                <option value="">Select a time</option>
-                                <option value="09:00">9:00 AM</option>
-                                <option value="10:00">10:00 AM</option>
-                                <option value="11:00">11:00 AM</option>
-                                <option value="12:00">12:00 PM</option>
-                                <option value="13:00">1:00 PM</option>
-                                <option value="14:00">2:00 PM</option>
-                                <option value="15:00">3:00 PM</option>
-                                <option value="16:00">4:00 PM</option>
-                                <option value="17:00">5:00 PM</option>
+                                <option value="">Select a date first</option>
                             </select>
+                            <div class="form-text" id="time-help">Available times will appear after selecting a date.</div>
                         </div>
 
                         <!-- Submit Button -->
                         <div class="d-grid">
                             <button type="submit" class="btn btn-primary btn-lg">
-                                Book Appointment - ${{ doctor.consultation_fee }}
+                                Book Appointment - ksh {{ doctor.consultation_fee }}
                             </button>
                         </div>
                     </form>
@@ -103,4 +101,60 @@
         </div>
     </div>
 </div>
+
+<script>
+// Store available slots data
+const availableSlots = {
+    {% for slot in available_slots %}
+    '{{ slot.display_date }}': [
+        {% for time_slot in slot.time_slots %}
+        { start: '{{ time_slot.start }}', display: '{{ time_slot.display }}' }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ]{% if not forloop.last %},{% endif %}
+    {% endfor %}
+};
+
+// Update time options when date changes
+document.getElementById('appointment_date').addEventListener('change', function() {
+    const selectedDate = this.value;
+    const timeSelect = document.getElementById('appointment_time');
+    const timeHelp = document.getElementById('time-help');
+    
+    // Clear current options
+    timeSelect.innerHTML = '<option value="">Select a time</option>';
+    
+    if (selectedDate && availableSlots[selectedDate]) {
+        const slots = availableSlots[selectedDate];
+        
+        if (slots.length > 0) {
+            slots.forEach(function(slot) {
+                const option = document.createElement('option');
+                option.value = slot.start;
+                option.textContent = slot.display;
+                timeSelect.appendChild(option);
+            });
+            timeHelp.textContent = slots.length + ' time slot(s) available';
+        } else {
+            // Default times if no slots set
+            const defaultTimes = [
+                {value: '09:00', text: '9:00 AM'},
+                {value: '10:00', text: '10:00 AM'},
+                {value: '11:00', text: '11:00 AM'},
+                {value: '14:00', text: '2:00 PM'},
+                {value: '15:00', text: '3:00 PM'},
+                {value: '16:00', text: '4:00 PM'}
+            ];
+            defaultTimes.forEach(function(time) {
+                const option = document.createElement('option');
+                option.value = time.value;
+                option.textContent = time.text;
+                timeSelect.appendChild(option);
+            });
+            timeHelp.textContent = 'Default time slots shown';
+        }
+    } else {
+        timeHelp.textContent = 'Select a date to see available times';
+    }
+});
+</script>
 {% endblock %}

@@ -3,24 +3,61 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+
+    <!-- ✅ MOST IMPORTANT MOBILE FIX -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>{% block title %}HealthLink - AI Telemedicine{% endblock %}</title>
+
+    <!-- ✅ Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- ✅ Your Main CSS -->
     <link href="{% static 'css/style.css' %}" rel="stylesheet">
+
+    <!-- ✅ Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- ✅ GLOBAL MOBILE SAFETY CSS -->
     <style>
-        .navbar-brand { font-weight: bold; }
+        html, body {
+            width: 100%;
+            overflow-x: hidden;   /* ✅ Removes sideways scrolling */
+        }
+
+        .navbar-brand { 
+            font-weight: bold; 
+        }
+
         .hero-section { 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 100px 0;
         }
+
+        /* ✅ MOBILE RESPONSIVE FIXES */
+        @media (max-width: 768px) {
+            .hero-section {
+                padding: 60px 15px;
+            }
+
+            h1, h2, h3 {
+                font-size: 90%;
+            }
+
+            .btn {
+                width: 100%;
+                text-align: center;
+            }
+        }
     </style>
 </head>
+
 <body>
+
     {% include 'includes/_header.html' %}
     
-    <main>
+    <main class="container-fluid px-0">
         {% block content %}
         {% endblock %}
     </main>
@@ -28,6 +65,8 @@
     {% include 'includes/_footer.html' %}
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
     {% block scripts %}{% endblock %}
+
 </body>
 </html>

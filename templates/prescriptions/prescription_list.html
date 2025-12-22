@@ -1,0 +1,356 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Prescriptions - HealthLink{% endblock %}
+
+{% block content %}
+<style>
+    .prescriptions-container {
+        padding: 2rem 0;
+        min-height: 80vh;
+        background: #f8fafc;
+    }
+    
+    .page-header {
+        margin-bottom: 2rem;
+    }
+    
+    .page-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+    
+    .page-subtitle {
+        color: #6b7280;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .btn-primary-custom {
+        background: #10b981;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: background 0.2s;
+    }
+    
+    .btn-primary-custom:hover {
+        background: #059669;
+        color: white;
+    }
+    
+    .btn-secondary-custom {
+        background: #6366f1;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: background 0.2s;
+    }
+    
+    .btn-secondary-custom:hover {
+        background: #4f46e5;
+        color: white;
+    }
+    
+    .filters-bar {
+        background: white;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: center;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .search-input {
+        flex: 1;
+        min-width: 200px;
+        padding: 0.5rem 1rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.9rem;
+    }
+    
+    .filter-select {
+        padding: 0.5rem 1rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        background: white;
+    }
+    
+    .prescription-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .prescription-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .prescription-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+    
+    .prescription-number {
+        font-family: monospace;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .prescription-date {
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+    
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-draft { background: #fef3c7; color: #92400e; }
+    .status-active { background: #d1fae5; color: #065f46; }
+    .status-dispensed { background: #dbeafe; color: #1e40af; }
+    .status-completed { background: #e5e7eb; color: #374151; }
+    .status-cancelled { background: #fee2e2; color: #991b1b; }
+    .status-expired { background: #fecaca; color: #991b1b; }
+    
+    .prescription-body {
+        margin-bottom: 1rem;
+    }
+    
+    .patient-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .patient-name {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .diagnosis-text {
+        color: #6b7280;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .medication-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        background: #f3f4f6;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        color: #4b5563;
+    }
+    
+    .prescription-actions {
+        display: flex;
+        gap: 0.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .btn-action {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: background 0.2s;
+    }
+    
+    .btn-view {
+        background: #10b981;
+        color: white;
+    }
+    
+    .btn-view:hover {
+        background: #059669;
+        color: white;
+    }
+    
+    .btn-edit {
+        background: #f3f4f6;
+        color: #374151;
+    }
+    
+    .btn-edit:hover {
+        background: #e5e7eb;
+        color: #1f2937;
+    }
+    
+    .btn-sign {
+        background: #6366f1;
+        color: white;
+    }
+    
+    .btn-sign:hover {
+        background: #4f46e5;
+        color: white;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 12px;
+    }
+    
+    .empty-state-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+    
+    .empty-state-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+    
+    .empty-state-text {
+        color: #6b7280;
+        margin-bottom: 1.5rem;
+    }
+</style>
+
+<div class="prescriptions-container">
+    <div class="container">
+        <div class="page-header">
+            <h1 class="page-title">💊 E-Prescriptions</h1>
+            <p class="page-subtitle">Manage and create digital prescriptions for your patients</p>
+        </div>
+        
+        <div class="action-buttons">
+            <a href="{% url 'prescriptions:create_prescription' %}" class="btn-primary-custom">
+                ➕ New Prescription
+            </a>
+            <a href="{% url 'prescriptions:quick_prescription' %}" class="btn-secondary-custom">
+                ⚡ Quick Prescription
+            </a>
+        </div>
+        
+        <div class="filters-bar">
+            <form method="GET" style="display: flex; gap: 1rem; flex-wrap: wrap; width: 100%;">
+                <input type="text" name="search" class="search-input" placeholder="Search by prescription #, patient, or diagnosis..." value="{{ search_query|default:'' }}">
+                <select name="status" class="filter-select">
+                    <option value="">All Status</option>
+                    <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="dispensed" {% if status_filter == 'dispensed' %}selected{% endif %}>Dispensed</option>
+                    <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+                <button type="submit" class="btn-action btn-view">Filter</button>
+            </form>
+        </div>
+        
+        {% if prescriptions %}
+            {% for prescription in prescriptions %}
+            <div class="prescription-card">
+                <div class="prescription-header">
+                    <div>
+                        <div class="prescription-number">{{ prescription.prescription_number }}</div>
+                        <div class="prescription-date">Created: {{ prescription.created_at|date:"M d, Y H:i" }}</div>
+                    </div>
+                    <span class="status-badge status-{{ prescription.status }}">
+                        {{ prescription.get_status_display }}
+                    </span>
+                </div>
+                
+                <div class="prescription-body">
+                    <div class="patient-info">
+                        <span>👤</span>
+                        <span class="patient-name">{{ prescription.patient.get_full_name|default:prescription.patient.username }}</span>
+                    </div>
+                    <div class="diagnosis-text">
+                        <strong>Diagnosis:</strong> {{ prescription.diagnosis|truncatewords:20 }}
+                    </div>
+                    <div>
+                        <span class="medication-count">
+                            💊 {{ prescription.items.count }} medication{{ prescription.items.count|pluralize }}
+                        </span>
+                        {% if prescription.is_signed %}
+                        <span class="medication-count" style="background: #d1fae5; color: #065f46;">
+                            ✅ Signed
+                        </span>
+                        {% endif %}
+                        <span class="medication-count">
+                            📅 Valid until: {{ prescription.valid_until|date:"M d, Y" }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="prescription-actions">
+                    <a href="{% url 'prescriptions:prescription_detail' pk=prescription.pk %}" class="btn-action btn-view">
+                        View Details
+                    </a>
+                    {% if prescription.status == 'draft' %}
+                    <a href="{% url 'prescriptions:add_items' pk=prescription.pk %}" class="btn-action btn-edit">
+                        Edit Medications
+                    </a>
+                    {% if prescription.items.count > 0 %}
+                    <a href="{% url 'prescriptions:sign_prescription' pk=prescription.pk %}" class="btn-action btn-sign">
+                        ✍️ Sign & Activate
+                    </a>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">📋</div>
+                <h3 class="empty-state-title">No Prescriptions Found</h3>
+                <p class="empty-state-text">
+                    {% if search_query or status_filter %}
+                        No prescriptions match your search criteria.
+                    {% else %}
+                        You haven't created any prescriptions yet.
+                    {% endif %}
+                </p>
+                <a href="{% url 'prescriptions:create_prescription' %}" class="btn-primary-custom">
+                    Create Your First Prescription
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

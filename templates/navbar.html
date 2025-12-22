@@ -14,6 +14,15 @@
                 <a href="{% url 'appointments:my_appointments' %}" style="margin-right: 1rem; text-decoration: none; color: #495057;">
                     My Appointments
                 </a>
+                {% if user.user_type == 'doctor' %}
+                <a href="{% url 'prescriptions:prescription_list' %}" style="margin-right: 1rem; text-decoration: none; color: #495057;">
+                    📋 Prescriptions
+                </a>
+                {% elif user.user_type == 'patient' %}
+                <a href="{% url 'prescriptions:my_prescriptions' %}" style="margin-right: 1rem; text-decoration: none; color: #495057;">
+                    💊 My Prescriptions
+                </a>
+                {% endif %}
                 <a href="{% url 'dashboard' %}" style="margin-right: 1rem; text-decoration: none; color: #495057;">
                     Dashboard
                 </a>

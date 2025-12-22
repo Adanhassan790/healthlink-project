@@ -9,7 +9,7 @@ SECRET_KEY = 'your-secret-key-here'  # We'll improve this later
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 INSTALLED_APPS = [
@@ -32,6 +32,8 @@ INSTALLED_APPS = [
     'consultations',
     'messaging',
     'payments',
+    'prescriptions',
+    'notifications',
 ]
 AUTH_USER_MODEL = 'users.CustomUser'
 
@@ -117,4 +119,11 @@ MPESA_CONSUMER_KEY = 'mWoFvuqkdkYEPhUr3e15qMv0axSOnZ4dRq8363nt8clYFWTZ'
 MPESA_CONSUMER_SECRET = 'X2MktkC0zFhNyrZPZ6EWASPlhl3ZYbQHoE7MGerzJSmgtQhxFngJLD3XL09pFjsF'
 MPESA_BUSINESS_SHORTCODE = '174379'  # Sandbox shortcode
 MPESA_PASSKEY = 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919'
-MPESA_CALLBACK_URL = 'https://your-ngrok-url.ngrok-free.dev/payments/mpesa/callback/'
+MPESA_CALLBACK_URL = 'https://untriumphantly-unlopped-kody.ngrok-free.dev/payments/mpesa/callback/'
+
+# Add ngrok domain to CSRF trusted origins
+CSRF_TRUSTED_ORIGINS = [
+    'https://untriumphantly-unlopped-kody.ngrok-free.dev',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+]

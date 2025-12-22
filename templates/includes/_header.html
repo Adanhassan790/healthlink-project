@@ -5,30 +5,108 @@
             <img src="{% static 'images/logo.png' %}" alt="HealthLink Logo" class="nav-logo">
             HealthLink
         </a>
-        <ul class="nav-menu">
+        
+        <!-- Hamburger Menu Button (Mobile) -->
+        <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+            <span class="hamburger"></span>
+        </button>
+        
+        <ul class="nav-menu" id="navMenu">
             <li><a href="{% url 'home' %}" class="nav-link">Home</a></li>
-            <li><a href="{% url 'appointments:doctor_list' %}" class="nav-link">Doctors</a></li>
-            <li><a href="{% url 'appointments:book_appointment_redirect' %}" class="nav-link">Book Appointment</a></li>
-            <li><a href="{% url 'triage:triage' %}" class="nav-link">AI Symptom Checker</a></li>
-            
             
             {% if user.is_authenticated %}
-                <li><a href="{% url 'messaging:conversation_list' %}" class="nav-link">Messages</a></li>
+                {% if user.user_type == 'patient' %}
+                    <!-- PATIENT MENU -->
+                    <li><a href="{% url 'triage:triage' %}" class="nav-link">AI Symptom Checker</a></li>
+                    <li><a href="{% url 'appointments:doctor_list' %}" class="nav-link">Find Doctors</a></li>
+                    <li><a href="{% url 'appointments:my_appointments' %}" class="nav-link">My Appointments</a></li>
+                    <li><a href="{% url 'messaging:conversation_list' %}" class="nav-link">Messages</a></li>
+                    <li><a href="{% url 'prescriptions:my_prescriptions' %}" class="nav-link">My Prescriptions</a></li>
+                    <li><a href="{% url 'payments:payment_history' %}" class="nav-link">Payments</a></li>
+                    
+                {% elif user.user_type == 'doctor' %}
+                    <!-- DOCTOR MENU -->
+                    <li><a href="{% url 'appointments:my_appointments' %}" class="nav-link">My Schedule</a></li>
+                    <li><a href="{% url 'appointments:manage_availability' %}" class="nav-link">Availability</a></li>
+                    <li><a href="{% url 'messaging:conversation_list' %}" class="nav-link">Messages</a></li>
+                    <li><a href="{% url 'prescriptions:prescription_list' %}" class="nav-link">Prescriptions</a></li>
+                    <li><a href="{% url 'prescriptions:create_prescription' %}" class="nav-link">Write Prescription</a></li>
+                {% endif %}
+                
+                <!-- COMMON MENU ITEMS FOR LOGGED IN USERS -->
                 <li><a href="{% url 'dashboard' %}" class="nav-link">Dashboard</a></li>
                 <li><a href="{% url 'profile' %}" class="nav-link">Profile</a></li>
+                
+                <!-- NOTIFICATIONS -->
+                <li class="notification-nav-item">
+                    <a href="{% url 'notifications:notification_list' %}" class="nav-link notification-link">
+                        <span class="notification-bell">🔔</span>
+                        <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+                    </a>
+                </li>
+                
+                <!-- LOGOUT LINK -->
                 <li>
-                    <form method="post" action="{% url 'logout' %}" class="logout-form">
+                    <form method="post" action="{% url 'logout' %}" style="display: inline; margin: 0;">
                         {% csrf_token %}
-                        <button type="submit" class="nav-link btn-logout">
+                        <button type="submit" class="nav-link" style="background: none; border: none; cursor: pointer;">
                             Logout ({{ user.username }})
                         </button>
                     </form>
                 </li>
             {% else %}
-                <li><a href="{% url 'login' %}" class="nav-link">Login</a></li>
+                <!-- NOT LOGGED IN -->
+                <li><a href="{% url 'appointments:doctor_list' %}" class="nav-link">Doctors</a></li>
                 <li><a href="{% url 'patient_register' %}" class="nav-link">Patient Register</a></li>
                 <li><a href="{% url 'doctor_register' %}" class="nav-link">Doctor Register</a></li>
+                <li><a href="{% url 'login' %}" class="nav-link">Login</a></li>
             {% endif %}
         </ul>
     </div>
 </nav>
+
+<script>
+// Mobile Navigation Toggle
+document.addEventListener('DOMContentLoaded', function() {
+    const navToggle = document.getElementById('navToggle');
+    const navMenu = document.getElementById('navMenu');
+    
+    if (navToggle && navMenu) {
+        navToggle.addEventListener('click', function() {
+            navMenu.classList.toggle('active');
+            navToggle.classList.toggle('active');
+        });
+        
+        // Close menu when clicking a link
+        const navLinks = navMenu.querySelectorAll('.nav-link');
+        navLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                navMenu.classList.remove('active');
+                navToggle.classList.remove('active');
+            });
+        });
+    }
+    
+    // Fetch unread notification count
+    const notificationBadge = document.getElementById('notificationBadge');
+    if (notificationBadge) {
+        function updateNotificationCount() {
+            fetch('{% url "notifications:unread_count" %}')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.count > 0) {
+                        notificationBadge.textContent = data.count > 9 ? '9+' : data.count;
+                        notificationBadge.style.display = 'flex';
+                    } else {
+                        notificationBadge.style.display = 'none';
+                    }
+                })
+                .catch(err => console.log('Could not fetch notifications'));
+        }
+        
+        // Update on load and every 30 seconds
+        updateNotificationCount();
+        setInterval(updateNotificationCount, 30000);
+    }
+});
+</script>

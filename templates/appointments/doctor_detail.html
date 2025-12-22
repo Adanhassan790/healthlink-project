@@ -17,6 +17,24 @@
                         <div>
                             <h1>Dr. {{ doctor.user.get_full_name }}</h1>
                             <h4 class="text-primary mb-2">{{ doctor.specialization }}</h4>
+                            
+                            <!-- Rating Display -->
+                            {% if avg_rating %}
+                            <div class="rating-display mb-2">
+                                <span style="color: #fbbf24; font-size: 1.1rem;">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= avg_rating %}★{% else %}☆{% endif %}
+                                    {% endfor %}
+                                </span>
+                                <span class="ms-2">{{ avg_rating|floatformat:1 }}/5</span>
+                                <a href="{% url 'appointments:doctor_reviews' doctor.user.id %}" class="ms-2" style="color: #6b7280; text-decoration: none;">({{ review_count }} review{{ review_count|pluralize }})</a>
+                            </div>
+                            {% else %}
+                            <p class="text-muted mb-2">
+                                <small>No reviews yet - <a href="{% url 'appointments:doctor_reviews' doctor.user.id %}">Be the first!</a></small>
+                            </p>
+                            {% endif %}
+                            
                             <p class="text-tertiary mb-1">
                                 <strong>{{ doctor.years_of_experience }}+ years of experience</strong>
                             </p>

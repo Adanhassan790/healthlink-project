@@ -212,42 +212,82 @@
 </div>
 
 <script>
-    // Conversation state to track symptoms and context
-    let conversationState = {
-        symptoms: new Set(),
-        askedQuestions: new Set(),
-        conversationStage: 'initial', // initial, gathering, analysis, recommendation
-        possibleConditions: [],
-        recommendedSpecialist: null
-    };
+    // Get CSRF token for API calls
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
 
-    document.getElementById('chatForm').addEventListener('submit', function(e) {
+    document.getElementById('chatForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         const userInput = document.getElementById('userInput');
         const message = userInput.value.trim();
         
         if (message) {
-            // Add user message
+            // Add user message to chat
             addMessage(message, 'user');
             userInput.value = '';
+            userInput.style.height = 'auto';
             
             // Show typing indicator
             const typingIndicator = document.createElement('div');
             typingIndicator.className = 'message ai-message typing-indicator';
             typingIndicator.id = 'typingIndicator';
-            typingIndicator.textContent = 'AI is thinking...';
+            typingIndicator.textContent = 'AI is analyzing your symptoms...';
             typingIndicator.style.display = 'block';
             document.getElementById('chatMessages').appendChild(typingIndicator);
-            
-            // Scroll to bottom
             scrollToBottom();
             
-            // Get intelligent AI response
-            setTimeout(() => {
-                document.getElementById('typingIndicator').remove();
-                const aiResponse = getAIResponse(message);
-                addMessage(aiResponse, 'ai');
-            }, 1500);
+            try {
+                // Call Django backend API
+                const response = await fetch('{% url "triage:triage_chat_api" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                
+                // Remove typing indicator
+                const indicator = document.getElementById('typingIndicator');
+                if (indicator) indicator.remove();
+                
+                if (data.error) {
+                    addMessage('Sorry, there was an error processing your request. Please try again.', 'ai');
+                } else {
+                    // Add AI response (supports markdown-style formatting)
+                    addFormattedMessage(data.response, 'ai');
+                    
+                    // Show collected symptoms if any
+                    if (data.symptoms && data.symptoms.length > 0) {
+                        updateSymptomsList(data.symptoms);
+                    }
+                    
+                    // If recommendation is ready, show action buttons
+                    if (data.ready_for_results) {
+                        showActionButtons(data.session_id);
+                    }
+                }
+            } catch (error) {
+                console.error('Chat API Error:', error);
+                const indicator = document.getElementById('typingIndicator');
+                if (indicator) indicator.remove();
+                addMessage('Sorry, I encountered a connection error. Please try again.', 'ai');
+            }
         }
     });
     
@@ -260,292 +300,103 @@
         scrollToBottom();
     }
     
+    function addFormattedMessage(text, sender) {
+        const messagesContainer = document.getElementById('chatMessages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender}-message`;
+        
+        // Convert markdown-style formatting to HTML
+        let formattedText = text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Bold
+            .replace(/✅/g, '<span style="color: #10b981;">✅</span>')  // Green checkmark
+            .replace(/📊/g, '📊')  // Keep emoji
+            .replace(/⏰/g, '⏰')  // Keep emoji
+            .replace(/\n/g, '<br>');  // Line breaks
+        
+        messageDiv.innerHTML = formattedText;
+        messagesContainer.appendChild(messageDiv);
+        scrollToBottom();
+    }
+    
     function scrollToBottom() {
         const messagesContainer = document.getElementById('chatMessages');
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
     
-    function getAIResponse(userMessage) {
-        const message = userMessage.toLowerCase();
-        
-        // Track symptoms mentioned
-        trackSymptoms(message);
-        
-        // Update conversation stage
-        updateConversationStage();
-        
-        // Generate response based on conversation stage and symptoms
-        return generateIntelligentResponse(message);
+    function updateSymptomsList(symptoms) {
+        // Create or update symptoms badge area
+        let symptomsArea = document.getElementById('collectedSymptoms');
+        if (!symptomsArea) {
+            symptomsArea = document.createElement('div');
+            symptomsArea.id = 'collectedSymptoms';
+            symptomsArea.style.cssText = 'padding: 0.5rem 1.5rem; background: #ecfdf5; border-top: 1px solid #d1fae5; font-size: 0.875rem;';
+            const chatCard = document.querySelector('.chat-card');
+            chatCard.insertBefore(symptomsArea, document.querySelector('.chat-input-container'));
+        }
+        symptomsArea.innerHTML = '<strong style="color: #059669;">Symptoms noted:</strong> ' + 
+            symptoms.map(s => `<span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 12px; margin: 2px; display: inline-block;">${s}</span>`).join(' ');
     }
-
-    function trackSymptoms(message) {
-        const symptomKeywords = {
-            'fever': 'fever',
-            'temperature': 'fever',
-            'headache': 'headache',
-            'migraine': 'headache',
-            'cough': 'cough',
-            'coughing': 'cough',
-            'cold': 'cough',
-            'sore throat': 'sore throat',
-            'throat pain': 'sore throat',
-            'nausea': 'nausea',
-            'vomiting': 'nausea',
-            'vomit': 'nausea',
-            'chest pain': 'chest pain',
-            'chest discomfort': 'chest pain',
-            'shortness of breath': 'breathing issues',
-            'difficulty breathing': 'breathing issues',
-            'wheezing': 'breathing issues',
-            'rash': 'skin issues',
-            'itching': 'skin issues',
-            'skin problem': 'skin issues',
-            'joint pain': 'joint pain',
-            'arthritis': 'joint pain',
-            'back pain': 'back pain',
-            'dizziness': 'dizziness',
-            'vertigo': 'dizziness',
-            'fatigue': 'fatigue',
-            'tiredness': 'fatigue',
-            'exhaustion': 'fatigue',
-            'anxiety': 'mental health',
-            'stress': 'mental health',
-            'worry': 'mental health',
-            'depression': 'mental health',
-            'allergy': 'allergies',
-            'sneezing': 'allergies',
-            'runny nose': 'allergies',
-            'stomach pain': 'abdominal pain',
-            'abdominal pain': 'abdominal pain',
-            'diarrhea': 'digestive issues',
-            'constipation': 'digestive issues',
-            'heartburn': 'digestive issues'
-        };
-
-        for (const [keyword, symptom] of Object.entries(symptomKeywords)) {
-            if (message.includes(keyword)) {
-                conversationState.symptoms.add(symptom);
-            }
-        }
+    
+    function showActionButtons(sessionId) {
+        const messagesContainer = document.getElementById('chatMessages');
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'message ai-message';
+        actionsDiv.style.cssText = 'display: flex; gap: 10px; flex-wrap: wrap; padding: 1rem;';
+        actionsDiv.innerHTML = `
+            <a href="{% url 'appointments:doctor_list' %}" class="btn" style="background: #10b981; color: white; padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none;">
+                🏥 Find Specialists
+            </a>
+            <button onclick="resetChat()" class="btn" style="background: #6b7280; color: white; padding: 0.5rem 1rem; border-radius: 8px; border: none; cursor: pointer;">
+                🔄 Start New Assessment
+            </button>
+        `;
+        messagesContainer.appendChild(actionsDiv);
+        scrollToBottom();
     }
-
-    function updateConversationStage() {
-        const symptomCount = conversationState.symptoms.size;
-        
-        if (symptomCount === 0) {
-            conversationState.conversationStage = 'initial';
-        } else if (symptomCount < 3) {
-            conversationState.conversationStage = 'gathering';
-        } else {
-            conversationState.conversationStage = 'analysis';
-            
-            // Determine recommended specialist based on symptoms
-            determineSpecialist();
+    
+    async function resetChat() {
+        // Clear session on server
+        try {
+            await fetch('{% url "triage:triage_chat_api" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({ message: '__reset__' })
+            });
+        } catch (e) {
+            console.log('Reset error:', e);
         }
+        
+        // Clear chat UI
+        const messagesContainer = document.getElementById('chatMessages');
+        messagesContainer.innerHTML = `
+            <div class="message ai-message">
+                Hello! I'm your AI health assistant. Please describe what symptoms you're experiencing and I'll help guide you to the right care.
+            </div>
+        `;
+        
+        // Remove symptoms area if exists
+        const symptomsArea = document.getElementById('collectedSymptoms');
+        if (symptomsArea) symptomsArea.remove();
+        
+        // Reload page to clear session
+        window.location.reload();
     }
-
-    function determineSpecialist() {
-        const symptoms = Array.from(conversationState.symptoms);
-        
-        // Specialist mapping based on symptoms
-        const specialistMapping = {
-            'fever': 'General Physician',
-            'cough': 'Pulmonologist',
-            'sore throat': 'ENT Specialist',
-            'breathing issues': 'Pulmonologist',
-            'headache': 'Neurologist',
-            'dizziness': 'Neurologist',
-            'chest pain': 'Cardiologist',
-            'abdominal pain': 'Gastroenterologist',
-            'digestive issues': 'Gastroenterologist',
-            'nausea': 'Gastroenterologist',
-            'skin issues': 'Dermatologist',
-            'joint pain': 'Rheumatologist',
-            'back pain': 'Orthopedic Specialist',
-            'fatigue': 'Endocrinologist',
-            'mental health': 'Psychiatrist',
-            'allergies': 'Allergist'
-        };
-
-        // Count occurrences of symptoms for each specialist
-        const specialistScores = {};
-        symptoms.forEach(symptom => {
-            const specialist = specialistMapping[symptom];
-            if (specialist) {
-                specialistScores[specialist] = (specialistScores[specialist] || 0) + 1;
-            }
-        });
-
-        // Find specialist with highest score
-        let topSpecialist = 'General Physician';
-        let highestScore = 0;
-        
-        for (const [specialist, score] of Object.entries(specialistScores)) {
-            if (score > highestScore) {
-                highestScore = score;
-                topSpecialist = specialist;
-            }
-        }
-
-        conversationState.recommendedSpecialist = topSpecialist;
-    }
-
-    function generateIntelligentResponse(message) {
-        const symptoms = Array.from(conversationState.symptoms);
-        
-        // Greetings and basic responses
-        if (message.includes('hello') || message.includes('hi') || message.includes('hey')) {
-            return "Hello! I'm your HealthLink AI assistant. I'll help you understand your symptoms and guide you to the right specialist. What symptoms are you experiencing today?";
-        }
-        
-        if (message.includes('thank') || message.includes('thanks')) {
-            return "You're welcome! I'm here to help. " + getFollowUpQuestion();
-        }
-        
-        if (message.includes('bye') || message.includes('goodbye')) {
-            return getFinalRecommendation() + " Thank you for using HealthLink!";
-        }
-
-        // Check if we have enough information for a recommendation
-        if (conversationState.conversationStage === 'analysis' && conversationState.recommendedSpecialist) {
-            if (message.includes('what next') || message.includes('recommend') || message.includes('doctor') || 
-                message.includes('specialist') || symptoms.length >= 3) {
-                return getFinalRecommendation();
-            }
-        }
-
-        // Symptom-specific intelligent responses
-        if (message.includes('fever') && !conversationState.askedQuestions.has('fever_duration')) {
-            conversationState.askedQuestions.add('fever_duration');
-            return "I understand you have a fever. How long have you had this fever, and what's the highest temperature you've recorded?";
-        }
-        
-        if (message.includes('headache') && !conversationState.askedQuestions.has('headache_type')) {
-            conversationState.askedQuestions.add('headache_type');
-            return "Tell me about your headache. Is it a constant ache, throbbing pain, or sharp pain? Where is it located exactly?";
-        }
-        
-        if (message.includes('cough') && !conversationState.askedQuestions.has('cough_type')) {
-            conversationState.askedQuestions.add('cough_type');
-            return "Is your cough dry or productive (with phlegm)? What color is the phlegm if any?";
-        }
-        
-        if (message.includes('chest pain') && !conversationState.askedQuestions.has('chest_pain_details')) {
-            conversationState.askedQuestions.add('chest_pain_details');
-            return "Chest pain needs careful evaluation. Is the pain sharp, dull, or burning? Does it radiate to your arm, jaw, or back?";
-        }
-        
-        if (message.includes('shortness of breath') && !conversationState.askedQuestions.has('breathing_details')) {
-            conversationState.askedQuestions.add('breathing_details');
-            return "When did the breathing difficulty start? Is it constant or does it come and go? Are you wheezing?";
-        }
-
-        // Follow-up questions based on symptoms
-        if (symptoms.length > 0 && conversationState.conversationStage === 'gathering') {
-            return getFollowUpQuestion();
-        }
-
-        // Default intelligent response
-        if (symptoms.length >= 2) {
-            return `I understand you're experiencing ${symptoms.join(' and ')}. ` + getFollowUpQuestion();
-        }
-
-        // General response for insufficient information
-        return "Thank you for sharing. To help you better, could you tell me more about your symptoms? For example, how long they've lasted, their severity, or any other symptoms you're experiencing?";
-    }
-
-    function getFollowUpQuestion() {
-        const symptoms = Array.from(conversationState.symptoms);
-        
-        if (symptoms.length === 0) {
-            const questions = [
-                "What specific symptoms are you experiencing?",
-                "Could you describe what you're feeling?",
-                "What health concerns would you like to discuss?"
-            ];
-            return questions[Math.floor(Math.random() * questions.length)];
-        }
-        
-        if (symptoms.length === 1) {
-            return "Are you experiencing any other symptoms along with this? The more details you provide, the better I can assist you.";
-        }
-        
-        if (symptoms.length >= 2 && !conversationState.askedQuestions.has('duration')) {
-            conversationState.askedQuestions.add('duration');
-            return "How long have you been experiencing these symptoms? Have they been getting better, worse, or staying the same?";
-        }
-        
-        if (symptoms.length >= 3) {
-            return "Based on the symptoms you've described, I have some insights. Would you like me to recommend the most appropriate specialist for your condition?";
-        }
-        
-        return "Is there anything else you'd like to tell me about your symptoms?";
-    }
-
-    function getFinalRecommendation() {
-        const symptoms = Array.from(conversationState.symptoms);
-        const specialist = conversationState.recommendedSpecialist || 'General Physician';
-        
-        let recommendation = `Based on our conversation and the symptoms you've described (${symptoms.join(', ')}), `;
-        
-        switch (specialist) {
-            case 'Cardiologist':
-                recommendation += "I recommend consulting with a **Cardiologist**. They specialize in heart and blood vessel conditions, which could be related to your symptoms.";
-                break;
-            case 'Neurologist':
-                recommendation += "I suggest seeing a **Neurologist**. They specialize in nervous system disorders, which could explain your symptoms.";
-                break;
-            case 'Pulmonologist':
-                recommendation += "I recommend a **Pulmonologist**. They are experts in respiratory system conditions and breathing issues.";
-                break;
-            case 'Gastroenterologist':
-                recommendation += "I suggest consulting a **Gastroenterologist**. They specialize in digestive system disorders.";
-                break;
-            case 'Dermatologist':
-                recommendation += "I recommend seeing a **Dermatologist**. They are skin specialists who can properly diagnose and treat skin conditions.";
-                break;
-            case 'Rheumatologist':
-                recommendation += "I suggest a **Rheumatologist**. They specialize in joint and musculoskeletal conditions.";
-                break;
-            case 'Orthopedic Specialist':
-                recommendation += "I recommend an **Orthopedic Specialist**. They focus on bone, joint, and muscle conditions.";
-                break;
-            case 'Psychiatrist':
-                recommendation += "I suggest consulting a **Psychiatrist**. They specialize in mental health conditions and can provide proper evaluation.";
-                break;
-            case 'Endocrinologist':
-                recommendation += "I recommend an **Endocrinologist**. They specialize in hormone-related conditions that can cause fatigue and other symptoms.";
-                break;
-            case 'Allergist':
-                recommendation += "I suggest seeing an **Allergist**. They specialize in allergy and immune system conditions.";
-                break;
-            case 'ENT Specialist':
-                recommendation += "I recommend an **ENT (Ear, Nose, and Throat) Specialist**. They handle conditions affecting these areas.";
-                break;
-            default:
-                recommendation += "I recommend starting with a **General Physician**. They can perform an initial evaluation and refer you to specialists if needed.";
-        }
-        
-        recommendation += "\n\nWould you like me to help you find available " + specialist + "s in your area?";
-        
-        return recommendation;
-    }
-
-    // Reset conversation when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-        conversationState = {
-            symptoms: new Set(),
-            askedQuestions: new Set(),
-            conversationStage: 'initial',
-            possibleConditions: [],
-            recommendedSpecialist: null
-        };
-    });
 
     // Auto-resize textarea
     document.getElementById('userInput').addEventListener('input', function() {
         this.style.height = 'auto';
         this.style.height = (this.scrollHeight) + 'px';
+    });
+    
+    // Handle Enter key to submit (Shift+Enter for new line)
+    document.getElementById('userInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            document.getElementById('chatForm').dispatchEvent(new Event('submit'));
+        }
     });
 </script>
 {% endblock %}
