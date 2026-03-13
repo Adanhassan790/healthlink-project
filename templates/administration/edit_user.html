@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit User - Admin - HealthLink{% endblock %}
+
+{% block content %}
+<style>
+    .admin-container {
+        padding: 2rem 0;
+    }
+    
+    .breadcrumb {
+        display: flex;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: #64748b;
+        margin-bottom: 1rem;
+    }
+    
+    .breadcrumb a {
+        color: #4f46e5;
+        text-decoration: none;
+    }
+    
+    .edit-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .edit-card h3 {
+        font-size: 1.125rem !important;
+        font-weight: 600 !important;
+        color: #1e293b !important;
+        margin-bottom: 1.5rem !important;
+        padding-bottom: 0.75rem !important;
+        border-bottom: 1px solid #e5e7eb !important;
+        line-height: 1.2 !important;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .form-group label {
+        display: block;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.875rem;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+    
+    .form-group textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+    
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .form-check input {
+        width: auto;
+    }
+    
+    .btn-row {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+        border: none;
+    }
+    
+    .btn-primary {
+        background: #4f46e5;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #4338ca;
+    }
+    
+    .btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+    }
+    
+    .btn-secondary:hover {
+        background: #e5e7eb;
+    }
+    
+    .user-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .user-badge.doctor { background: #dbeafe; color: #1e40af; }
+    .user-badge.patient { background: #dcfce7; color: #166534; }
+    .user-badge.admin { background: #fef3c7; color: #92400e; }
+    
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="container admin-container">
+    <div class="breadcrumb">
+        <a href="{% url 'administration:dashboard' %}">Admin</a> /
+        <a href="{% url 'administration:user_management' %}">Users</a> /
+        <a href="{% url 'administration:user_detail' viewed_user.id %}">{{ viewed_user.username }}</a> /
+        <span>Edit</span>
+    </div>
+    
+    <h1 style="font-size: 1.75rem; font-weight: 700; color: #1e293b; margin-bottom: 1.5rem;">
+        Edit User: {{ viewed_user.get_full_name|default:viewed_user.username }}
+        <span class="user-badge {{ viewed_user.user_type }}">{{ viewed_user.get_user_type_display }}</span>
+    </h1>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <!-- Basic Information -->
+        <div class="edit-card">
+            <h3>📋 Basic Information</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" name="first_name" value="{{ viewed_user.first_name }}">
+                </div>
+                <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" name="last_name" value="{{ viewed_user.last_name }}">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email" value="{{ viewed_user.email }}">
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="text" name="phone_number" value="{{ viewed_user.phone_number|default:'' }}">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>User Type</label>
+                    <select name="user_type">
+                        <option value="patient" {% if viewed_user.user_type == 'patient' %}selected{% endif %}>Patient</option>
+                        <option value="doctor" {% if viewed_user.user_type == 'doctor' %}selected{% endif %}>Doctor</option>
+                        <option value="admin" {% if viewed_user.user_type == 'admin' %}selected{% endif %}>Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Account Status</label>
+                    <div class="form-check" style="margin-top: 0.5rem;">
+                        <input type="checkbox" name="is_active" id="is_active" {% if viewed_user.is_active %}checked{% endif %}>
+                        <label for="is_active" style="margin-bottom: 0;">Account is Active</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Doctor Profile -->
+        {% if doctor_profile %}
+        <div class="edit-card">
+            <h3>👨‍⚕️ Doctor Professional Information</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Specialization</label>
+                    <input type="text" name="specialization" value="{{ doctor_profile.specialization }}">
+                </div>
+                <div class="form-group">
+                    <label>License Number</label>
+                    <input type="text" name="license_number" value="{{ doctor_profile.license_number }}">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Consultation Fee (KES)</label>
+                    <input type="number" name="consultation_fee" value="{{ doctor_profile.consultation_fee }}" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Years of Experience</label>
+                    <input type="number" name="years_of_experience" value="{{ doctor_profile.years_of_experience|default:0 }}" min="0">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Bio</label>
+                <textarea name="bio">{{ doctor_profile.bio|default:'' }}</textarea>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Patient Profile -->
+        {% if patient_profile %}
+        <div class="edit-card">
+            <h3>🏥 Patient Medical Information</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Blood Type</label>
+                    <select name="blood_type">
+                        <option value="">Select Blood Type</option>
+                        <option value="A+" {% if patient_profile.blood_type == 'A+' %}selected{% endif %}>A+</option>
+                        <option value="A-" {% if patient_profile.blood_type == 'A-' %}selected{% endif %}>A-</option>
+                        <option value="B+" {% if patient_profile.blood_type == 'B+' %}selected{% endif %}>B+</option>
+                        <option value="B-" {% if patient_profile.blood_type == 'B-' %}selected{% endif %}>B-</option>
+                        <option value="AB+" {% if patient_profile.blood_type == 'AB+' %}selected{% endif %}>AB+</option>
+                        <option value="AB-" {% if patient_profile.blood_type == 'AB-' %}selected{% endif %}>AB-</option>
+                        <option value="O+" {% if patient_profile.blood_type == 'O+' %}selected{% endif %}>O+</option>
+                        <option value="O-" {% if patient_profile.blood_type == 'O-' %}selected{% endif %}>O-</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Emergency Contact</label>
+                    <input type="text" name="emergency_contact" value="{{ patient_profile.emergency_contact|default:'' }}">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Allergies</label>
+                <textarea name="allergies">{{ patient_profile.allergies|default:'' }}</textarea>
+            </div>
+            <div class="form-group">
+                <label>Medical History</label>
+                <textarea name="medical_history">{{ patient_profile.medical_history|default:'' }}</textarea>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Submit Buttons -->
+        <div class="btn-row">
+            <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+            <a href="{% url 'administration:user_detail' viewed_user.id %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
