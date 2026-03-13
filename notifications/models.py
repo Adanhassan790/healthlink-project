@@ -98,7 +98,7 @@ def notify_new_message(sender, receiver, conversation):
         notification_type='new_message',
         title='New Message',
         message=f'You have a new message from {sender.get_full_name()}.',
-        link=reverse('messaging:conversation', kwargs={'conversation_id': conversation.id})
+        link=reverse('messaging:conversation_detail', kwargs={'conversation_id': conversation.id})
     )
 
 

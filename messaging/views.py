@@ -31,7 +31,7 @@ def conversation_detail(request, conversation_id):
     
     # Check if user is part of this conversation
     if request.user not in [conversation.patient, conversation.doctor]:
-        return redirect('conversation_list')
+        return redirect('messaging:conversation_list')
     
     # Check if user wants to start a video call directly
     if request.GET.get('start_video') == '1':
@@ -127,7 +127,7 @@ def start_conversation(request, appointment_id):
     
     # Check if user is part of this appointment
     if request.user not in [appointment.patient, appointment.doctor]:
-        return redirect('conversation_list')
+        return redirect('messaging:conversation_list')
     
     # Get or create conversation
     conversation, created = Conversation.objects.get_or_create(

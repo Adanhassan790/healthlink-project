@@ -20,14 +20,15 @@ urlpatterns = [
     path('profile/', views.profile, name='profile'),
     
     # IMPORTANT: 
-    path('appointments/', include('appointments.urls')),
-    path('users/', include('users.urls')),
+    path('appointments/', include('appointments.urls', namespace='appointments')),
+    path('users/', include('users.urls', namespace='users')),
+    path('administration/', include('administration.urls', namespace='administration')),
 
-    path('triage/', include('triage.urls')),
+    path('triage/', include('triage.urls', namespace='triage')),
     path('messaging/', include('messaging.urls', namespace='messaging')),  
-    path('payments/', include('payments.urls')),
-    path('prescriptions/', include('prescriptions.urls')),
-    path('notifications/', include('notifications.urls')),
+    path('payments/', include('payments.urls', namespace='payments')),
+    path('prescriptions/', include('prescriptions.urls', namespace='prescriptions')),
+    path('notifications/', include('notifications.urls', namespace='notifications')),
 ]
 
 # Serve static and media files during development
