@@ -140,14 +140,15 @@
                 </div>
                 
                 <div class="card-footer bg-light border-0">
-                    <form method="post" action="{% url 'messaging:send_message' conversation.id %}" class="message-form">
+                    <form id="messageForm" class="message-form">
                         {% csrf_token %}
                         <div class="input-group input-group-lg">
-                            <input type="text" name="content" class="form-control border-primary" placeholder="Type your message..." required>
-                            <button type="submit" class="btn btn-primary px-4">
-                                <i class="fas fa-paper-plane me-2"></i>Send
+                            <input type="text" name="content" id="messageInput" class="form-control border-primary" placeholder="Type your message..." required>
+                            <button type="submit" class="btn btn-primary px-4" id="sendBtn">
+                                <i class="fas fa-paper-plane me-2"></i><span>Send</span>
                             </button>
                         </div>
+                        <small class="text-muted d-block mt-2" id="sendStatus"></small>
                     </form>
                 </div>
             </div>
@@ -277,32 +278,138 @@
 
 <script>
 // Auto-scroll to bottom of messages
-document.addEventListener('DOMContentLoaded', function() {
+function scrollToBottom() {
     const messagesWrapper = document.querySelector('.messages-wrapper');
     if (messagesWrapper) {
         messagesWrapper.scrollTop = messagesWrapper.scrollHeight;
     }
+}
+
+// Handle form submission via AJAX
+document.addEventListener('DOMContentLoaded', function() {
+    scrollToBottom(); // Initial scroll
+    
+    const messageForm = document.getElementById('messageForm');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const sendStatus = document.getElementById('sendStatus');
+    const conversationId = {{ conversation.id }};
+    const currentUserId = {{ user.id }};
+    const currentUserName = "{{ user.get_full_name }}";
+    
+    // Handle message form submission
+    messageForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const content = messageInput.value.trim();
+        if (!content) return;
+        
+        // Show loading state
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i><span>Sending...</span>';
+        sendStatus.textContent = 'Sending message...';
+        
+        // Send message via AJAX
+        fetch(`/messaging/conversation/${conversationId}/send/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'content=' + encodeURIComponent(content)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Clear input
+                messageInput.value = '';
+                sendStatus.textContent = '';
+                
+                // Add message to DOM dynamically
+                const messagesWrapper = document.querySelector('.messages-wrapper');
+                const emptyMessage = messagesWrapper.querySelector('.empty-conversation');
+                
+                // Remove empty message if exists
+                if (emptyMessage) {
+                    emptyMessage.remove();
+                }
+                
+                // Create new message element
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message-wrapper mb-3 message-sent-wrapper';
+                messageDiv.innerHTML = `
+                    <div class="message message-sent">
+                        <div class="message-content p-3 rounded">
+                            <p class="mb-2 message-text">${escapeHtml(content)}</p>
+                            <div class="message-meta d-flex justify-content-between align-items-center">
+                                <small class="sender-name text-white-50">
+                                    <i class="fas fa-user me-1"></i>${escapeHtml(currentUserName)}
+                                </small>
+                                <small class="timestamp text-white-50">
+                                    <i class="fas fa-clock me-1"></i>just now
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Add animation
+                messageDiv.style.opacity = '0';
+                messageDiv.style.transform = 'translateY(10px)';
+                messagesWrapper.appendChild(messageDiv);
+                
+                // Trigger animation
+                setTimeout(() => {
+                    messageDiv.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+                    messageDiv.style.opacity = '1';
+                    messageDiv.style.transform = 'translateY(0)';
+                }, 10);
+                
+                // Scroll to bottom
+                setTimeout(scrollToBottom, 100);
+            } else {
+                sendStatus.textContent = 'Error: ' + (data.error || 'Failed to send');
+                sendStatus.style.color = '#dc3545';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            sendStatus.textContent = 'Connection error. Please try again.';
+            sendStatus.style.color = '#dc3545';
+        })
+        .finally(() => {
+            // Reset button
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i><span>Send</span>';
+        });
+    });
+    
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
     
     // Video call functionality
     const startVideoCallBtn = document.getElementById('startVideoCall');
-    const conversationId = {{ conversation.id }};
-    
-    startVideoCallBtn.addEventListener('click', function() {
-        startVideoCall();
-    });
+    if (startVideoCallBtn) {
+        startVideoCallBtn.addEventListener('click', function() {
+            startVideoCall();
+        });
+    }
     
     function startVideoCall() {
         fetch(`/messaging/call/start/${conversationId}/`, {
             method: 'POST',
             headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
                 'Content-Type': 'application/json'
             }
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Open video room in new window or redirect
                 window.location.href = `/messaging/call/room/${data.room_id}/`;
             } else {
                 alert('Failed to start video call: ' + (data.error || 'Unknown error'));
@@ -316,24 +423,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Check for incoming calls periodically
     function checkIncomingCalls() {
-        console.log('Checking for incoming calls...');
         fetch(`/messaging/call/check/${conversationId}/`)
         .then(response => response.json())
         .then(data => {
-            console.log('Call check response:', data);
             if (data.has_incoming_call) {
-                console.log('INCOMING CALL DETECTED!');
                 showIncomingCallModal(data);
             }
         })
         .catch(error => console.error('Error checking calls:', error));
     }
     
-    // Check immediately on page load
     checkIncomingCalls();
     
     function showIncomingCallModal(callData) {
-        // Create modal if it doesn't exist
         let modal = document.getElementById('incomingCallModal');
         if (!modal) {
             modal = document.createElement('div');
@@ -362,7 +464,6 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             document.body.appendChild(modal);
             
-            // Add pulse animation style
             const style = document.createElement('style');
             style.textContent = `
                 .pulse-animation {
@@ -391,7 +492,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch(`/messaging/call/decline/${callData.call_id}/`, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
                     'Content-Type': 'application/json'
                 }
             });
@@ -399,7 +500,6 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
     
-    // Check for incoming calls every 3 seconds
     setInterval(checkIncomingCalls, 3000);
 });
 </script>
