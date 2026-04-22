@@ -7,53 +7,43 @@ import os
 import sys
 import subprocess
 
-# Ensure unbuffered output
-sys.stdout = open(sys.stdout.fileno(), 'w', buffering=1)
-sys.stderr = open(sys.stderr.fileno(), 'w', buffering=1)
-
-def run_migrations():
-    """Run Django migrations"""
-    print("=" * 60, flush=True)
-    print("Running Django Migrations...", flush=True)
-    print("=" * 60, flush=True)
-    sys.stdout.flush()
+def main():
+    """Run migrations then start gunicorn"""
     
-    try:
-        # Run migrations without cwd override (we're already in /app as WORKDIR)
-        result = subprocess.run(
-            [sys.executable, "manage.py", "migrate", "--noinput"],
-            capture_output=False,
-            text=True
-        )
-        
-        print("=" * 60, flush=True)
-        
-        if result.returncode != 0:
-            print(f"[ERROR] Migrations failed with return code {result.returncode}", flush=True)
-            sys.exit(1)
-            
-        print("Migrations completed successfully!", flush=True)
-        print("=" * 60, flush=True)
-        sys.stdout.flush()
-        
-    except Exception as e:
-        print(f"[ERROR] Failed to run migrations: {str(e)}", flush=True)
-        sys.stdout.flush()
+    print("=" * 70)
+    print("Starting HealthLink Django Application")
+    print("=" * 70)
+    print("")
+    
+    print("Step 1: Running Database Migrations...")
+    print("=" * 70)
+    
+    # Run migrations
+    result = subprocess.run(
+        [sys.executable, "manage.py", "migrate", "--noinput"],
+        text=True
+    )
+    
+    if result.returncode != 0:
+        print(f"[ERROR] Migrations failed with return code {result.returncode}")
         sys.exit(1)
-
-def start_gunicorn():
-    """Start gunicorn web server"""
-    print("\n" + "=" * 60, flush=True)
-    print("Starting Gunicorn...", flush=True)
-    print("=" * 60 + "\n", flush=True)
-    sys.stdout.flush()
     
+    print("=" * 70)
+    print("Migrations completed successfully!")
+    print("")
+    
+    print("Step 2: Starting Gunicorn Server...")
+    print("=" * 70)
+    print("")
+    
+    # Start gunicorn - use os.execvp to replace this process
     os.execvp(
         "gunicorn",
         [
             "gunicorn",
             "--bind", "0.0.0.0:8000",
             "--workers", "4",
+            "--worker-class", "sync",
             "--timeout", "120",
             "--access-logfile", "-",
             "--error-logfile", "-",
@@ -63,8 +53,10 @@ def start_gunicorn():
 
 if __name__ == "__main__":
     try:
-        run_migrations()
-        start_gunicorn()
+        main()
+    except KeyboardInterrupt:
+        print("\n[INFO] Shutdown requested")
+        sys.exit(0)
     except Exception as e:
-        print(f"[FATAL] Startup failed: {str(e)}", flush=True)
+        print(f"[FATAL] {str(e)}")
         sys.exit(1)

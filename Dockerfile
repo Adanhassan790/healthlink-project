@@ -31,14 +31,11 @@ RUN pip install -r requirements.txt
 # Copy project
 COPY . .
 
-# Make entrypoint script executable
-RUN chmod +x /app/entrypoint.sh
-
 # Collect static files (without requiring database)
 RUN python manage.py collectstatic --noinput --clear || true
 
 # Expose port
 EXPOSE 8000
 
-# Use the shell script as entrypoint
-ENTRYPOINT ["/app/entrypoint.sh"]
+# Use Python startup script (avoids shell/line-ending issues)
+CMD ["python", "start_server.py"]
