@@ -1,4 +1,3 @@
-import openai
 from datetime import datetime
 import json
 import os
@@ -20,9 +19,15 @@ class ThinkingHealthBot:
         self.use_local = use_local
         
         if not use_local:
-            # For OpenAI GPT
-            openai.api_key = os.getenv('OPENAI_API_KEY')
-            self.model = "gpt-3.5-turbo"
+            # For OpenAI GPT (lazy import)
+            try:
+                import openai
+                openai.api_key = os.getenv('OPENAI_API_KEY')
+                self.model = "gpt-3.5-turbo"
+            except ImportError:
+                print("OpenAI module not installed. Chat features disabled.")
+                self.use_local = True
+                self.model = "fallback"
         else:
             # For local LLM (Ollama, Llama.cpp, etc.)
             self.model = "llama2"  # or "mistral", "phi-2", etc.
@@ -93,17 +98,21 @@ class ThinkingHealthBot:
         
         try:
             if not self.use_local:
-                # Call OpenAI API
-                response = openai.ChatCompletion.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    temperature=0.3,
-                    max_tokens=500
-                )
-                result = json.loads(response.choices[0].message.content)
+                # Call OpenAI API (lazy import)
+                try:
+                    import openai
+                    response = openai.ChatCompletion.create(
+                        model=self.model,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        temperature=0.3,
+                        max_tokens=500
+                    )
+                    result = json.loads(response.choices[0].message.content)
+                except ImportError:
+                    result = self.fallback_analysis(user_input)
             else:
                 # Call local LLM
                 result = self.call_local_llm(system_prompt, user_prompt)
@@ -171,16 +180,21 @@ class ThinkingHealthBot:
         
         try:
             if not self.use_local:
-                response = openai.ChatCompletion.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "system", "content": "You are a medical triage specialist."},
-                        {"role": "user", "content": reasoning_prompt}
-                    ],
-                    temperature=0.2,
-                    max_tokens=600
-                )
-                return response.choices[0].message.content
+                # Import openai lazily
+                try:
+                    import openai
+                    response = openai.ChatCompletion.create(
+                        model=self.model,
+                        messages=[
+                            {"role": "system", "content": "You are a medical triage specialist."},
+                            {"role": "user", "content": reasoning_prompt}
+                        ],
+                        temperature=0.2,
+                        max_tokens=600
+                    )
+                    return response.choices[0].message.content
+                except ImportError:
+                    return self.fallback_recommendation()
             else:
                 return self.call_local_llm("You are a medical triage specialist.", reasoning_prompt)
                 
