@@ -37,5 +37,5 @@ RUN python manage.py collectstatic --noinput --clear || true
 # Expose port
 EXPOSE 8000
 
-# Run migrations and start gunicorn
-CMD sh -c "python manage.py migrate --noinput && gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 120 --access-logfile - --error-logfile - healthlink.wsgi:application"
+# Run startup script (migrations + gunicorn)
+CMD ["python", "start_server.py"]
