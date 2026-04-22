@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Call Statistics - HealthLink{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        border-left: 4px solid #667eea;
+        transition: all 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #667eea;
+    }
+    
+    .stat-label {
+        color: #6b7280;
+        font-size: 0.95rem;
+        margin-top: 5px;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 30px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-chart-bar me-2 text-primary"></i>Call Statistics Dashboard
+                </h2>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Key Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="stat-number">{{ stats.total_calls }}</div>
+                    <div class="stat-label">Total Calls</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card" style="border-left-color: #10b981;">
+                <div class="card-body">
+                    <div class="stat-number" style="color: #10b981;">{{ stats.completed_calls }}</div>
+                    <div class="stat-label">Completed Calls</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card" style="border-left-color: #f97316;">
+                <div class="card-body">
+                    <div class="stat-number" style="color: #f97316;">{{ stats.missed_calls }}</div>
+                    <div class="stat-label">Missed Calls</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card" style="border-left-color: #ef4444;">
+                <div class="card-body">
+                    <div class="stat-number" style="color: #ef4444;">{{ stats.declined_calls }}</div>
+                    <div class="stat-label">Declined Calls</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Call Duration Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light border-0 py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2 text-primary"></i>Call Duration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6 text-center pb-3">
+                            <div style="font-size: 2rem; font-weight: bold; color: #667eea;">
+                                {{ stats.total_minutes }}
+                            </div>
+                            <small class="text-muted">Total Minutes</small>
+                        </div>
+                        <div class="col-6 text-center pb-3 border-left">
+                            {% if stats.completed_calls > 0 %}
+                                <div style="font-size: 1.5rem; font-weight: bold; color: #10b981;">
+                                    {{ avg_minutes }}:{{ avg_seconds|stringformat:"02d" }}
+                                </div>
+                                <small class="text-muted">Average Duration</small>
+                            {% else %}
+                                <div style="font-size: 1.5rem; font-weight: bold; color: #6b7280;">
+                                    —
+                                </div>
+                                <small class="text-muted">No calls completed</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light border-0 py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-percent me-2 text-success"></i>Completion Rate
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div style="flex: 1;">
+                            {% if stats.total_calls > 0 %}
+                                {% widthratio stats.completed_calls stats.total_calls 100 as completion_rate %}
+                                <div class="progress" style="height: 30px;">
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: {{ completion_rate }}%; background: #667eea;"
+                                         aria-valuenow="{{ completion_rate }}" aria-valuemin="0" aria-valuemax="100">
+                                        {{ completion_rate }}%
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="text-muted text-center py-3">No calls yet</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Conversations Overview -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light border-0 py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comments me-2 text-primary"></i>Conversations Overview
+                    </h5>
+                </div>
+                
+                {% if conversations %}
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Conversation</th>
+                                    <th>Participant</th>
+                                    <th>Total Calls</th>
+                                    <th>Last Call</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for conversation in conversations %}
+                                <tr>
+                                    <td>
+                                        <strong>#{{ conversation.id }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if request.user.user_type == 'patient' %}
+                                            <i class="fas fa-user-md me-2 text-primary"></i>
+                                            {{ conversation.doctor.get_full_name }}
+                                        {% else %}
+                                            <i class="fas fa-user me-2 text-info"></i>
+                                            {{ conversation.patient.get_full_name }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">
+                                            {{ conversation.video_calls.count }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% with last_call=conversation.video_calls.first %}
+                                            {% if last_call %}
+                                                <small class="text-muted">
+                                                    {{ last_call.started_at|date:"M d, Y H:i" }}
+                                                </small>
+                                            {% else %}
+                                                <small class="text-muted">No calls</small>
+                                            {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'messaging:conversation_detail' conversation.id %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-arrow-right me-1"></i>View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3 opacity-50"></i>
+                    <p class="text-muted">No conversations yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Format statistics from backend
+    document.addEventListener('DOMContentLoaded', function() {
+        // Calculate average duration for display
+        const totalMinutes = {{ stats.total_minutes }};
+        const completedCalls = {{ stats.completed_calls }};
+        
+        if (completedCalls > 0) {
+            const avgMinutes = Math.floor(totalMinutes / completedCalls);
+            const avgSeconds = Math.round(((totalMinutes / completedCalls) % 1) * 60);
+        }
+    });
+</script>
+{% endblock %}

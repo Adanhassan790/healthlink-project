@@ -1,7 +1,12 @@
 import openai
 from datetime import datetime
 import json
+import os
+from dotenv import load_dotenv
 from .models import Symptom, SymptomChoice
+
+# Load environment variables
+load_dotenv()
 
 class ThinkingHealthBot:
     def __init__(self, user=None, use_local=False):
@@ -16,7 +21,7 @@ class ThinkingHealthBot:
         
         if not use_local:
             # For OpenAI GPT
-            openai.api_key = "your-openai-api-key"
+            openai.api_key = os.getenv('OPENAI_API_KEY')
             self.model = "gpt-3.5-turbo"
         else:
             # For local LLM (Ollama, Llama.cpp, etc.)

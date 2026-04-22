@@ -3,7 +3,7 @@ from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from users.models import DoctorProfile
-from triage.models import SavedAssessment  # ADD THIS
+from triage.models import SavedAssessment
 from appointments.models import Appointment  # ADD THIS
 
 def home(request):

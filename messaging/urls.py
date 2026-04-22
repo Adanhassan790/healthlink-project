@@ -29,4 +29,14 @@ urlpatterns = [
     path('call/signal/ice/<int:call_id>/', views.send_ice_candidate, name='send_ice_candidate'),
     path('call/signal/get-ice/<int:call_id>/', views.get_ice_candidates, name='get_ice_candidates'),
     path('call/signal/state/<int:call_id>/', views.get_signaling_state, name='get_signaling_state'),
+    
+    # Call history and statistics URLs
+    path('call/history/<int:conversation_id>/', views.call_history, name='call_history'),
+    path('call/stats/dashboard/', views.call_statistics_dashboard, name='call_stats_dashboard'),
+    path('call/stats/<int:conversation_id>/', views.call_statistics, name='call_stats_conversation'),
+    path('call/stats/', views.call_statistics, name='call_stats_user'),
+    path('call/recording/<int:call_id>/', views.toggle_call_recording, name='toggle_recording'),
+    
+    # Diagnostics
+    path('call/diagnostics/<int:conversation_id>/', views.video_call_diagnostics, name='call_diagnostics'),
 ]

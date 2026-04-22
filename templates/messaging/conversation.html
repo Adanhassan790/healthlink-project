@@ -400,16 +400,47 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function startVideoCall() {
+        // Get CSRF token - handle both cases (in form or in Meta tag)
+        let csrfToken = null;
+        
+        // Try to get from input field first
+        const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfInput) {
+            csrfToken = csrfInput.value;
+        }
+        
+        // If not found, try to get from Meta tag (fallback)
+        if (!csrfToken) {
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            if (csrfMeta) {
+                csrfToken = csrfMeta.content;
+            }
+        }
+        
+        // If still no CSRF token, show error
+        if (!csrfToken) {
+            alert('Security error: CSRF token not found. Please refresh the page.');
+            console.error('CSRF token not found on page');
+            return;
+        }
+        
+        console.log('Starting video call for conversation:', conversationId);
+        
         fetch(`/messaging/call/start/${conversationId}/`, {
             method: 'POST',
             headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-CSRFToken': csrfToken,
                 'Content-Type': 'application/json'
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Video call response status:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('Video call response data:', data);
             if (data.success) {
+                console.log('Redirecting to room:', data.room_id);
                 window.location.href = `/messaging/call/room/${data.room_id}/`;
             } else {
                 alert('Failed to start video call: ' + (data.error || 'Unknown error'));
@@ -417,7 +448,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Error starting video call:', error);
-            alert('Failed to start video call. Please try again.');
+            alert('Failed to start video call. Please try again.\n\nError: ' + error.message);
         });
     }
     
@@ -434,6 +465,76 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     checkIncomingCalls();
+    
+    // Audio context for generating ringtone
+    let audioContext = null;
+    let ringtoneOscillator = null;
+    
+    function initAudioContext() {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return audioContext;
+    }
+    
+    function playRingtone() {
+        try {
+            const context = initAudioContext();
+            
+            // Stop any existing ringtone
+            if (ringtoneOscillator) {
+                ringtoneOscillator.stop();
+                ringtoneOscillator = null;
+            }
+            
+            // Create ringtone tone (dual frequency for authentic feel)
+            ringtoneOscillator = context.createOscillator();
+            const gainNode = context.createGain();
+            
+            ringtoneOscillator.connect(gainNode);
+            gainNode.connect(context.destination);
+            
+            // Start with 440 Hz alternating pattern
+            let frequency = 440;
+            let startTime = context.currentTime;
+            
+            const scheduleRingtone = setInterval(() => {
+                if (ringtoneOscillator && context.state === 'running') {
+                    frequency = frequency === 440 ? 480 : 440;
+                    ringtoneOscillator.frequency.setValueAtTime(frequency, context.currentTime);
+                    gainNode.gain.setValueAtTime(0.3, context.currentTime);
+                } else {
+                    clearInterval(scheduleRingtone);
+                }
+            }, 200);
+            
+            ringtoneOscillator.frequency.value = frequency;
+            gainNode.gain.setValueAtTime(0.3, context.currentTime);
+            ringtoneOscillator.start();
+        } catch (e) {
+            console.log('Could not play ringtone:', e);
+        }
+    }
+    
+    function stopRingtone() {
+        if (ringtoneOscillator) {
+            try {
+                ringtoneOscillator.stop();
+            } catch (e) {
+                console.log('Error stopping ringtone:', e);
+            }
+            ringtoneOscillator = null;
+        }
+    }
+    
+    function requestNotificationPermission() {
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    }
+    
+    // Request notification permission on page load
+    requestNotificationPermission();
     
     function showIncomingCallModal(callData) {
         let modal = document.getElementById('incomingCallModal');
@@ -480,15 +581,30 @@ document.addEventListener('DOMContentLoaded', function() {
         
         document.getElementById('callerName').textContent = `${callData.caller_name} is calling...`;
         
+        // Play ringtone
+        playRingtone();
+        
+        // Show browser notification
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Incoming Video Call', {
+                body: `${callData.caller_name} is calling you!`,
+                icon: '/static/images/healthlink-logo.png',
+                tag: 'incoming-call-' + callData.call_id,
+                requireInteraction: true
+            });
+        }
+        
         const bsModal = new bootstrap.Modal(modal);
         bsModal.show();
         
         document.getElementById('acceptCall').onclick = function() {
+            stopRingtone();
             bsModal.hide();
             window.location.href = `/messaging/call/room/${callData.room_id}/`;
         };
         
         document.getElementById('declineCall').onclick = function() {
+            stopRingtone();
             fetch(`/messaging/call/decline/${callData.call_id}/`, {
                 method: 'POST',
                 headers: {
@@ -498,6 +614,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             bsModal.hide();
         };
+        
+        // Auto stop ringtone after 30 seconds (in case modal is closed)
+        setTimeout(() => {
+            stopRingtone();
+        }, 30000);
     }
     
     setInterval(checkIncomingCalls, 3000);

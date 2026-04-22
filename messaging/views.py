@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.utils import timezone
+from django.db.models import Q, Count
 from .models import Conversation, Message, VideoCall
 from appointments.models import Appointment
 from notifications.models import notify_new_message
@@ -187,6 +188,10 @@ def get_unread_count(request):
 @login_required
 def start_video_call(request, conversation_id):
     """Start a video call in a conversation"""
+    # Only allow POST requests
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+    
     conversation = get_object_or_404(Conversation, id=conversation_id)
     print(f"\n=== START_VIDEO_CALL ===")
     print(f"User: {request.user.username}, Conversation: {conversation_id}")
@@ -662,3 +667,209 @@ def get_signaling_state(request, call_id):
         'caller_ice_count': len(json.loads(video_call.caller_ice_candidates)) if video_call.caller_ice_candidates else 0,
         'receiver_ice_count': len(json.loads(video_call.receiver_ice_candidates)) if video_call.receiver_ice_candidates else 0,
     })
+
+
+# ============== CALL HISTORY & STATISTICS ==============
+
+@login_required
+def call_history(request, conversation_id):
+    """Get call history for a conversation"""
+    conversation = get_object_or_404(Conversation, id=conversation_id)
+    
+    # Check if user is part of this conversation
+    if request.user not in [conversation.patient, conversation.doctor]:
+        return JsonResponse({'error': 'Not authorized'}, status=403)
+    
+    # Get all calls for this conversation
+    calls = VideoCall.objects.filter(conversation=conversation).order_by('-started_at')
+    
+    call_data = []
+    for call in calls:
+        call_data.append({
+            'id': call.id,
+            'caller': call.caller.get_full_name() or call.caller.username,
+            'receiver': call.receiver.get_full_name() or call.receiver.username,
+            'status': call.status,
+            'duration': call.duration_formatted,
+            'duration_seconds': call.duration,
+            'started_at': call.started_at.isoformat(),
+            'answered_at': call.answered_at.isoformat() if call.answered_at else None,
+            'ended_at': call.ended_at.isoformat() if call.ended_at else None,
+        })
+    
+    return JsonResponse({
+        'conversation_id': conversation_id,
+        'total_calls': len(call_data),
+        'calls': call_data
+    })
+
+
+@login_required
+def call_statistics(request, conversation_id=None):
+    """Get call statistics for a conversation or user"""
+    if conversation_id:
+        # Statistics for specific conversation
+        conversation = get_object_or_404(Conversation, id=conversation_id)
+        
+        if request.user not in [conversation.patient, conversation.doctor]:
+            return JsonResponse({'error': 'Not authorized'}, status=403)
+        
+        calls = VideoCall.objects.filter(conversation=conversation)
+    else:
+        # Statistics for current user (all calls they participated in)
+        calls = VideoCall.objects.filter(
+            Q(caller=request.user) | Q(receiver=request.user)
+        )
+    
+    # Calculate statistics
+    total_calls = calls.count()
+    completed_calls = calls.filter(status__in=['ended', 'ongoing']).count()
+    missed_calls = calls.filter(status='missed').count()
+    declined_calls = calls.filter(status='declined').count()
+    
+    # Calculate total duration
+    total_duration = 0
+    for call in calls.filter(status__in=['ended', 'ongoing']):
+        total_duration += call.duration
+    
+    average_duration = total_duration // completed_calls if completed_calls > 0 else 0
+    
+    # Get calls by month (last 6 months)
+    from django.db.models import Count
+    from datetime import timedelta
+    from django.utils import timezone
+    
+    six_months_ago = timezone.now() - timedelta(days=180)
+    calls_by_month = calls.filter(started_at__gte=six_months_ago).values(
+        'started_at__year', 'started_at__month'
+    ).annotate(count=Count('id')).order_by('started_at__year', 'started_at__month')
+    
+    month_data = [{'year': item['started_at__year'], 'month': item['started_at__month'], 'count': item['count']} for item in calls_by_month]
+    
+    stats = {
+        'total_calls': total_calls,
+        'completed_calls': completed_calls,
+        'missed_calls': missed_calls,
+        'declined_calls': declined_calls,
+        'total_duration_seconds': total_duration,
+        'average_duration_seconds': average_duration,
+        'completion_rate': round((completed_calls / total_calls * 100) if total_calls > 0 else 0, 1),
+        'calls_by_month': month_data
+    }
+    
+    return JsonResponse(stats)
+
+
+@login_required
+def call_statistics_dashboard(request):
+    """Render call statistics dashboard"""
+    # Get user's conversations
+    if request.user.user_type == 'patient':
+        conversations = Conversation.objects.filter(patient=request.user)
+    elif request.user.user_type == 'doctor':
+        conversations = Conversation.objects.filter(doctor=request.user)
+    else:
+        conversations = Conversation.objects.none()
+    
+    # Calculate overall stats
+    from django.db.models import Count, Q
+    all_calls = VideoCall.objects.filter(
+        Q(caller=request.user) | Q(receiver=request.user)
+    )
+    
+    stats = {
+        'total_calls': all_calls.count(),
+        'completed_calls': all_calls.filter(status__in=['ended', 'ongoing']).count(),
+        'missed_calls': all_calls.filter(status='missed').count(),
+        'declined_calls': all_calls.filter(status='declined').count(),
+    }
+    
+    # Get total duration in minutes
+    total_seconds = sum([call.duration for call in all_calls.filter(status__in=['ended', 'ongoing'])])
+    stats['total_minutes'] = total_seconds // 60
+    
+    return render(request, 'messaging/call_statistics.html', {
+        'conversations': conversations,
+        'stats': stats
+    })
+
+
+@login_required
+def toggle_call_recording(request, call_id):
+    """Enable or disable recording for a call"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=400)
+    
+    video_call = get_object_or_404(VideoCall, id=call_id)
+    conversation = video_call.conversation
+    
+    # Check if user is part of this conversation (only caller/receiver can toggle)
+    if request.user not in [conversation.patient, conversation.doctor]:
+        return JsonResponse({'error': 'Not authorized'}, status=403)
+    
+    # Only allow toggling if call hasn't ended yet or just ended
+    if video_call.status not in ['initiated', 'ringing', 'ongoing', 'ended']:
+        return JsonResponse({'error': 'Cannot modify recording for this call status'}, status=400)
+    
+    try:
+        data = json.loads(request.body)
+        enabled = data.get('enabled', False)
+        
+        video_call.recording_enabled = enabled
+        video_call.save()
+        
+        return JsonResponse({
+            'success': True,
+            'recording_enabled': video_call.recording_enabled,
+            'message': f'Recording {"enabled" if enabled else "disabled"}'
+        })
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+
+# ============== DIAGNOSTICS ==============
+
+@login_required
+def video_call_diagnostics(request, conversation_id):
+    """Diagnostics endpoint to check video call configuration"""
+    conversation = get_object_or_404(Conversation, id=conversation_id)
+    
+    # Check if user is part of this conversation
+    if request.user not in [conversation.patient, conversation.doctor]:
+        return JsonResponse({'error': 'Not authorized'}, status=403)
+    
+    # Get all calls for this conversation
+    calls = VideoCall.objects.filter(conversation=conversation).order_by('-started_at')[:5]
+    
+    diag_data = {
+        'conversation_id': conversation_id,
+        'user': {
+            'username': request.user.username,
+            'full_name': request.user.get_full_name(),
+            'email': request.user.email,
+            'user_type': request.user.user_type
+        },
+        'conversation': {
+            'patient': conversation.patient.get_full_name() or conversation.patient.username,
+            'doctor': conversation.doctor.get_full_name() or conversation.doctor.username,
+            'created_at': conversation.created_at.isoformat(),
+            'updated_at': conversation.updated_at.isoformat()
+        },
+        'recent_calls': []
+    }
+    
+    for call in calls:
+        diag_data['recent_calls'].append({
+            'id': call.id,
+            'room_id': call.room_id,
+            'status': call.status,
+            'caller': call.caller.username,
+            'receiver': call.receiver.username,
+            'started_at': call.started_at.isoformat(),
+            'answered_at': call.answered_at.isoformat() if call.answered_at else None,
+            'duration': call.duration,
+            'has_offer': bool(call.caller_offer),
+            'has_answer': bool(call.receiver_answer)
+        })
+    
+    return JsonResponse(diag_data)

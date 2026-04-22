@@ -1,0 +1,595 @@
+# triage/llm_triage_service.py - HYBRID TRIAGE SERVICE
+# Uses OpenAI GPT-3.5-turbo with fallback to advanced rule-based system
+import os
+import json
+from datetime import datetime
+from dotenv import load_dotenv
+import logging
+
+try:
+    import openai
+    from openai import OpenAI
+except ImportError:
+    openai = None
+    OpenAI = None
+
+load_dotenv()
+logger = logging.getLogger(__name__)
+
+
+class LLMTriageService:
+    """
+    Hybrid triage service using OpenAI's GPT model with smart fallback.
+    Gracefully degrades to rule-based triage when API is unavailable.
+    """
+
+    def __init__(self, use_openai=True):
+        self.api_key = os.getenv('OPENAI_API_KEY')
+        self.use_openai = use_openai and self.api_key is not None
+        self.client = None
+        self.model = "gpt-3.5-turbo"
+        self.conversation_history = []
+        self.symptoms_identified = []
+        self.state = 'greeting'  # greeting -> symptom_gathering -> details -> recommendation
+        self.api_available = False
+        
+        # Try to initialize OpenAI client
+        if self.use_openai:
+            try:
+                self.client = OpenAI(api_key=self.api_key)
+                self.api_available = True
+                logger.info("✅ OpenAI API client initialized successfully")
+            except Exception as e:
+                logger.warning(f"⚠️ OpenAI initialization failed: {e}. Using fallback mode.")
+                self.api_available = False
+
+    def system_prompt(self):
+        """Medical triage system prompt with detailed instructions"""
+        return """You are a professional medical triage AI assistant.
+
+CRITICAL INSTRUCTIONS - YOU MUST FOLLOW THESE EXACTLY:
+1. You ALWAYS respond with ONLY valid JSON (no markdown, no code blocks, no extra text)
+2. You NEVER include ```json or ``` markers
+3. Your response is PURE JSON that can be parsed directly
+
+REQUIRED JSON STRUCTURE (exact field names):
+{
+  "thinking": "Your brief analysis",
+  "extracted_symptoms": ["symptom1", "symptom2"],
+  "severity_assessment": "low|medium|high",
+  "emergency_alert": true/false,
+  "next_question": "Your response to patient",
+  "ready_for_recommendation": false/true,
+  "recommendation": null or {"primary_specialty": "Specialty Name", "urgency": "routine|urgent|emergency", "reasoning": "Why this specialty"}
+}
+
+YOUR TRIAGE PROCESS:
+1. LISTEN to patient symptoms
+2. GATHER details: severity, duration, location, frequency
+3. IDENTIFY patterns in symptoms
+4. RECOMMEND appropriate specialty (only when ready)
+5. ALERT if emergency
+
+CRITICAL RULES:
+- NEVER diagnose - only triage to specialty
+- ALWAYS ask 1-2 clarifying questions
+- Detect EMERGENCIES: chest pain, difficulty breathing, loss of consciousness, severe bleeding, severe trauma
+- Be empathetic and professional
+- After gathering 3-4 key symptoms + severity info, provide recommendation
+
+SPECIALTY MAPPINGS:
+- Chest pain, heart issues → Cardiology
+- Headache, dizziness, neurological → Neurology  
+- Cough, breathing issues → Pulmonology
+- Stomach, digestive issues → Gastroenterology
+- Rash, skin issues → Dermatology
+- Joint, bone pain → Orthopedics
+- Mental health, stress, depression → Psychiatry
+- ENT issues → ENT
+- Eye issues → Ophthalmology
+- Default → General Medicine
+
+REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
+
+    def process_patient_message(self, user_message: str) -> dict:
+        """
+        Process a patient message intelligently.
+        Tries OpenAI API first, falls back to rule-based system if API unavailable.
+        """
+        try:
+            # Add user message to history
+            self.conversation_history.append({
+                "role": "user",
+                "content": user_message
+            })
+
+            # Try OpenAI first if available
+            if self.api_available and self.client:
+                return self._process_with_openai(user_message)
+            else:
+                # Fallback to rule-based system
+                logger.info("💡 Using fallback rule-based triage")
+                return self._process_with_fallback(user_message)
+
+        except Exception as e:
+            logger.error(f"Error in process_patient_message: {e}")
+            return self._create_error_response(f"Processing error: {str(e)}")
+
+    def _process_with_openai(self, user_message: str) -> dict:
+        """Process using OpenAI API"""
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self.system_prompt()},
+                ] + self.conversation_history,
+                temperature=0.3,  # Low for consistency
+                max_tokens=500,
+                timeout=20  # 20 second timeout
+            )
+
+            ai_message = response.choices[0].message.content
+            logger.debug(f"OpenAI response: {ai_message[:100]}...")
+
+            # Parse JSON response
+            analysis = self._parse_json_response(ai_message)
+
+            # Add to history
+            self.conversation_history.append({
+                "role": "assistant",
+                "content": ai_message
+            })
+
+            # Update state
+            self._update_state(analysis)
+            return analysis
+
+        except (openai.RateLimitError, openai.APIConnectionError, openai.APIError) as e:
+            logger.warning(f"⚠️ OpenAI API unavailable: {e}. Switching to fallback.")
+            self.api_available = False
+            return self._process_with_fallback(user_message)
+
+    def _parse_json_response(self, response_text: str) -> dict:
+        """
+        Robustly parse JSON from response, handling various formats.
+        """
+        try:
+            # Try direct parsing first
+            return json.loads(response_text)
+        except json.JSONDecodeError:
+            pass
+
+        # Try removing markdown code blocks
+        for marker in ["```json", "```"]:
+            if marker in response_text:
+                try:
+                    start_idx = response_text.find(marker) + len(marker)
+                    end_idx = response_text.find("```", start_idx)
+                    if end_idx > start_idx:
+                        json_str = response_text[start_idx:end_idx].strip()
+                        return json.loads(json_str)
+                except json.JSONDecodeError:
+                    continue
+
+        # Last resort: extract JSON object
+        try:
+            start_idx = response_text.find("{")
+            end_idx = response_text.rfind("}") + 1
+            if start_idx >= 0 and end_idx > start_idx:
+                json_str = response_text[start_idx:end_idx]
+                return json.loads(json_str)
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        # If all parsing fails, create structured response from text
+        logger.warning(f"Could not parse JSON, falling back to text analysis")
+        return self._create_response_from_text(response_text)
+
+    def _create_response_from_text(self, text: str) -> dict:
+        """Create structured response when JSON parsing fails"""
+        symptoms = self._extract_symptoms_from_text(text)
+        return {
+            "thinking": "Processing natural language response",
+            "extracted_symptoms": symptoms,
+            "severity_assessment": self._assess_severity_from_text(text),
+            "emergency_alert": self._detect_emergency_from_text(text),
+            "next_question": text[:500],  # Use text as response
+            "ready_for_recommendation": len(symptoms) >= 3,
+            "recommendation": None
+        }
+
+    def _process_with_fallback(self, user_message: str) -> dict:
+        """
+        Process using rule-based system when API is unavailable.
+        More reliable for board demo than broken API calls.
+        Intelligently tracks conversation turns and adapts questions.
+        """
+        # Count conversation turns
+        turn_count = len([m for m in self.conversation_history if m['role'] == 'user'])
+        
+        # Extract symptoms from user message
+        symptoms = self._extract_symptoms_from_text(user_message)
+        self.symptoms_identified.extend([s for s in symptoms if s not in self.symptoms_identified])
+
+        # Assess severity and emergency
+        severity = self._assess_severity_from_text(user_message)
+        emergency = self._detect_emergency_from_text(user_message)
+
+        # Generate appropriate response based on conversation state
+        if emergency:
+            self.state = 'emergency'
+            response_text = "🚨 EMERGENCY DETECTED. Please seek immediate medical attention or call emergency services. You should visit the Emergency Room right now."
+        
+        # Decision logic based on number of symptoms and conversation turns
+        elif len(self.symptoms_identified) == 0:
+            response_text = "I didn't quite catch that. Could you please describe your main symptom or health concern? For example: 'I have a cough' or 'I have chest pain'."
+        
+        elif len(self.symptoms_identified) == 1:
+            # First symptom - ask about it
+            symptom = self.symptoms_identified[0]
+            response_text = f"I see you have {symptom}. To help better:\n- How long have you had this {symptom.lower()}? (days, weeks)\n- How severe is it? (mild, moderate, severe)\n- Anything else you've noticed?"
+        
+        elif len(self.symptoms_identified) == 2 and turn_count <= 2:
+            # Two symptoms, early in conversation - ask about duration and other symptoms
+            response_text = f"Good, so you have {', '.join(self.symptoms_identified[:2])}. Can you tell me:\n- When did this start? (recent or ongoing)\n- Any other symptoms like fever, fatigue, or difficulty breathing?\n- How is it affecting your daily activities?"
+        
+        elif len(self.symptoms_identified) >= 2 and turn_count >= 2 and len(self.symptoms_identified) < 4:
+            # Multiple symptoms, conversation progressing - check for more info
+            specialty, _ = self._recommend_specialty_from_symptoms()
+            
+            # If we have a clear specialty match, can recommend
+            if specialty and specialty != 'General Medicine':
+                self.state = 'recommendation'
+                self.conversation_history.append({
+                    "role": "assistant",
+                    "content": f"Recommending {specialty}"
+                })
+                urgency = self._assess_urgency(self.symptoms_identified, specialty)
+                
+                return {
+                    "thinking": f"Based on symptoms: {', '.join(self.symptoms_identified)}",
+                    "extracted_symptoms": self.symptoms_identified,
+                    "severity_assessment": severity,
+                    "emergency_alert": emergency,
+                    "next_question": f"Based on your symptoms of {', '.join(self.symptoms_identified)}, I recommend seeing a {specialty} specialist. They can properly diagnose and treat your condition.",
+                    "ready_for_recommendation": True,
+                    "recommendation": {
+                        "primary_specialty": specialty,
+                        "urgency": urgency,
+                        "reasoning": f"Your {specialty.lower()} symptoms match: {', '.join(self.symptoms_identified)}"
+                    }
+                }
+            else:
+                # Not enough clarity yet - ask more
+                response_text = f"Thank you. You mentioned: {', '.join(self.symptoms_identified)}.\n- Do you have any fever, chills, or night sweats?\n- Any pain, swelling, or difficulty with specific activities?\n- Have you recently been sick or exposed to illness?"
+        
+        else:
+            # Enough symptoms and information - make recommendation
+            specialty, urgency = self._recommend_specialty_from_symptoms()
+            self.state = 'recommendation'
+            self.conversation_history.append({
+                "role": "assistant",
+                "content": f"Recommending {specialty}"
+            })
+            return {
+                "thinking": f"Based on symptoms: {', '.join(self.symptoms_identified)}",
+                "extracted_symptoms": self.symptoms_identified,
+                "severity_assessment": severity,
+                "emergency_alert": emergency,
+                "next_question": f"Based on your symptoms, I recommend seeing a {specialty} specialist.",
+                "ready_for_recommendation": True,
+                "recommendation": {
+                    "primary_specialty": specialty,
+                    "urgency": urgency,
+                    "reasoning": f"Your symptoms of {', '.join(self.symptoms_identified[:3])} suggest {specialty} expertise is needed."
+                }
+            }
+
+        # Update state
+        if self.state == 'gathering':
+            self.state = 'gathering'
+        
+        self.conversation_history.append({
+            "role": "assistant",
+            "content": response_text
+        })
+
+        return {
+            "thinking": f"Turn {turn_count}, Found {len(self.symptoms_identified)} symptoms",
+            "extracted_symptoms": self.symptoms_identified,
+            "severity_assessment": severity,
+            "emergency_alert": emergency,
+            "next_question": response_text,
+            "ready_for_recommendation": False,
+            "recommendation": None
+        }
+
+    def _recommend_specialty_from_symptoms(self) -> tuple:
+        """
+        Recommend specialty based on identified symptoms.
+        Uses intelligent pattern matching and symptom combinations.
+        Returns (specialty, urgency)
+        """
+        symptoms_lower = [s.lower() for s in self.symptoms_identified]
+        
+        # Specialty mapping with keyword patterns
+        specialty_patterns = {
+            'Cardiology': {
+                'keywords': ['chest pain', 'palpitations', 'heart', 'rapid heartbeat', 'irregular heartbeat', 'cardiac'],
+                'min_score': 1
+            },
+            'Neurology': {
+                'keywords': ['headache', 'migraine', 'dizziness', 'seizure', 'numbness', 'tingling', 'vertigo', 'sensitivity to light', 'numb'],
+                'min_score': 2
+            },
+            'Pulmonology': {
+                'keywords': ['cough', 'breathing', 'asthma', 'lung', 'shortness of breath', 'wheezing', 'respiratory', 'throat'],
+                'min_score': 1
+            },
+            'Gastroenterology': {
+                'keywords': ['stomach', 'abdominal', 'diarrhea', 'vomiting', 'nausea', 'bloating', 'indigestion', 'heartburn', 'reflux', 'constipation'],
+                'min_score': 2
+            },
+            'Dermatology': {
+                'keywords': ['rash', 'itching', 'skin', 'acne', 'hives', 'burn', 'bruising', 'eczema'],
+                'min_score': 1
+            },
+            'Orthopedics': {
+                'keywords': ['joint pain', 'joint', 'arthritis', 'back pain', 'bone', 'knee pain', 'fracture', 'sprain', 'muscle pain'],
+                'min_score': 2
+            },
+            'Psychiatry': {
+                'keywords': ['anxiety', 'depression', 'stress', 'mental', 'panic', 'insomnia', 'mood', 'psycho'],
+                'min_score': 1
+            },
+            'ENT': {
+                'keywords': ['sore throat', 'ear pain', 'runny nose', 'stuffy nose', 'sinus', 'tonsil', 'throat', 'nasal'],
+                'min_score': 1
+            },
+            'Ophthalmology': {
+                'keywords': ['eye pain', 'blurred vision', 'red eyes', 'vision', 'opthal', 'ocular'],
+                'min_score': 1
+            },
+        }
+
+        # Score each specialty
+        scores = {}
+        for specialty, pattern in specialty_patterns.items():
+            score = 0
+            for keyword in pattern['keywords']:
+                for symptom in symptoms_lower:
+                    if keyword in symptom or symptom in keyword:
+                        score += 1
+            scores[specialty] = score
+
+        # Get best match with minimum score consideration
+        best_specialty = 'General Medicine'
+        best_score = 0
+        for specialty, pattern in specialty_patterns.items():
+            if scores[specialty] >= pattern['min_score'] and scores[specialty] > best_score:
+                best_specialty = specialty
+                best_score = scores[specialty]
+
+        # Determine urgency
+        urgent_symptoms = ['chest pain', 'difficulty breathing', 'severe pain', 'severe', 'severe bleeding']
+        is_urgent = any(any(u in symptom_lower for u in urgent_symptoms) for symptom_lower in symptoms_lower)
+        
+        if self._detect_emergency_from_text(' '.join(self.symptoms_identified)):
+            urgency = 'emergency'
+        elif is_urgent and best_specialty in ['Cardiology', 'Pulmonology']:
+            urgency = 'urgent'
+        else:
+            urgency = 'routine'
+
+        return best_specialty, urgency
+
+    def _update_state(self, analysis: dict):
+        """Update internal state based on analysis"""
+        if analysis.get('extracted_symptoms'):
+            new_symptoms = [s for s in analysis['extracted_symptoms'] if s not in self.symptoms_identified]
+            self.symptoms_identified.extend(new_symptoms)
+
+        if analysis.get('emergency_alert'):
+            self.state = 'emergency'
+        elif analysis.get('ready_for_recommendation'):
+            self.state = 'recommendation'
+        else:
+            self.state = 'gathering'
+
+    def _create_error_response(self, error_msg: str) -> dict:
+        """Create error response"""
+        return {
+            "thinking": "Error occurred",
+            "extracted_symptoms": [],
+            "severity_assessment": "unknown",
+            "emergency_alert": False,
+            "next_question": "I apologize for the technical difficulty. Could you try describing your main symptom again?",
+            "ready_for_recommendation": False,
+            "error": error_msg
+        }
+
+    def _assess_severity_from_text(self, text: str) -> str:
+        """Assess severity from text"""
+        text_lower = text.lower()
+        if any(w in text_lower for w in ['severe', 'critical', 'extreme', 'unbearable', 'excruciating']):
+            return 'high'
+        elif any(w in text_lower for w in ['moderate', 'quite', 'fairly', 'bad']):
+            return 'medium'
+        else:
+            return 'low'
+
+    def _detect_emergency_from_text(self, text: str) -> bool:
+        """Detect emergency keywords"""
+        emergency_keywords = [
+            'chest pain', 'difficulty breathing', 'loss of consciousness', 'severe bleeding',
+            'poisoning', 'choking', 'severe trauma', 'unconscious', 'can\'t breathe',
+            'severe chest', 'heart attack', 'stroke', 'severe injury'
+        ]
+        text_lower = text.lower()
+        return any(keyword in text_lower for keyword in emergency_keywords)
+
+    def _assess_urgency(self, symptoms: list, specialty: str) -> str:
+        """
+        Assess urgency level based on symptoms and specialty.
+        Returns: 'routine', 'urgent', or 'emergency'
+        """
+        symptoms_lower = [s.lower() for s in symptoms]
+        
+        # Check for severe/urgent indicators
+        severe_keywords = ['severe', 'unbearable', 'excruciating', 'critical', 'can\'t', 'bleeding']
+        has_severe = any(keyword in ' '.join(symptoms_lower) for keyword in severe_keywords)
+        
+        # Specialty-based urgency
+        urgent_specialties = {
+            'Cardiology': True,  # Always urgent for heart
+            'Pulmonology': True,  # Always urgent for breathing
+            'Neurology': True,     # Always urgent for neurological
+        }
+        
+        if has_severe or specialty in urgent_specialties:
+            return 'urgent'
+        else:
+            return 'routine'
+
+    def get_greeting(self) -> str:
+        """Get initial greeting message"""
+        if self.api_available and self.client:
+            try:
+                greeting_response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": "You are a friendly medical triage AI. Greet the patient warmly and ask them to describe their main symptom or concern. Keep it brief and welcoming."}
+                    ],
+                    temperature=0.5,
+                    max_tokens=150,
+                    timeout=10
+                )
+                return greeting_response.choices[0].message.content
+            except Exception as e:
+                logger.warning(f"Greeting API call failed: {e}")
+                self.api_available = False
+
+        # Fallback greeting
+        return "👋 Hello! I'm your medical triage assistant. I'm here to help guide you to the right doctor. Could you please describe what brings you in today? What's your main symptom or health concern?"
+
+    def reset_conversation(self):
+        """Reset conversation for new patient"""
+        self.conversation_history = []
+        self.symptoms_identified = []
+        self.state = 'greeting'
+
+    def get_specialty_options(self) -> list:
+        """Get list of available medical specialties"""
+        return [
+            "General Medicine",
+            "Cardiology",
+            "Neurology",
+            "Psychiatry",
+            "Dermatology",
+            "Orthopedics",
+            "Gastroenterology",
+            "Pulmonology",
+            "ENT (Otolaryngology)",
+            "Ophthalmology",
+            "Urology",
+            "Gynecology",
+            "Rheumatology",
+            "Endocrinology",
+            "Nephrology",
+            "Infectious Disease",
+            "Hematology",
+            "Oncology"
+        ]
+
+    def _extract_symptoms_from_text(self, text: str) -> list:
+        """Extract symptoms from text using comprehensive symptom database"""
+        # Comprehensive symptom mappings with variations
+        symptom_keywords = {
+            'Fever': ['fever', 'temperature', 'temp', 'hot', 'warm'],
+            'Cough': ['cough', 'coughing', 'hard cough'],
+            'Headache': ['headache', 'head ache', 'head pain', 'head hurt'],
+            'Migraine': ['migraine', 'severe headache'],
+            'Nausea': ['nausea', 'nauseous', 'feeling sick', 'queasy'],
+            'Vomiting': ['vomit', 'vomiting', 'threw up', 'sick'],
+            'Diarrhea': ['diarrhea', 'diarrhoea', 'loose stool', 'loose stools'],
+            'Chest Pain': ['chest pain', 'chest ache', 'chest hurt', 'cardiac pain'],
+            'Shortness of Breath': ['shortness of breath', 'breathing problem', 'can\'t breathe', 'difficulty breathing'],
+            'Dizziness': ['dizziness', 'dizzy', 'lightheaded', 'vertigo', 'spinning'],
+            'Fatigue': ['fatigue', 'tired', 'exhausted', 'exhaustion', 'weak', 'weakness'],
+            'Sore Throat': ['sore throat', 'throat pain', 'throat hurt', 'pharyngitis'],
+            'Runny Nose': ['runny nose', 'nasal discharge', 'nose running'],
+            'Rash': ['rash', 'rashes', 'skin rash', 'itchy rash'],
+            'Joint Pain': ['joint pain', 'joint ache', 'joint hurt', 'arthritis'],
+            'Back Pain': ['back pain', 'back ache', 'spinal pain', 'lumbar pain'],
+            'Abdominal Pain': ['abdominal pain', 'stomach pain', 'belly pain', 'tummy pain', 'stomach ache'],
+            'Anxiety': ['anxiety', 'anxious', 'worried', 'nervousness', 'nervous'],
+            'Depression': ['depression', 'depressed', 'sad', 'hopeless'],
+            'Insomnia': ['insomnia', 'can\'t sleep', 'sleep problem', 'sleeping problem'],
+            'Palpitations': ['palpitations', 'heart racing', 'heart pounding', 'rapid heartbeat'],
+            'Rapid Heartbeat': ['rapid heartbeat', 'fast heartbeat', 'fast heart', 'tachycardia'],
+            'Muscle Pain': ['muscle pain', 'muscle ache', 'myalgia', 'muscle hurt'],
+            'Numbness': ['numbness', 'numb', 'paresthesia'],
+            'Tingling': ['tingling', 'pins and needles', 'prickling'],
+            'Dry Cough': ['dry cough', 'non productive cough'],
+            'Wet Cough': ['wet cough', 'productive cough', 'phlegm', 'mucus'],
+            'Wheezing': ['wheezing', 'wheeze', 'whistling breath'],
+            'Stuffy Nose': ['stuffy nose', 'congestion', 'nasal congestion', 'blocked nose'],
+            'Sneezing': ['sneezing', 'sneeze', 'sneezes'],
+            'Sinus Pressure': ['sinus pressure', 'sinus pain', 'sinus ache'],
+            'Loss of Smell': ['loss of smell', 'no smell', 'can\'t smell'],
+            'Loss of Taste': ['loss of taste', 'no taste', 'can\'t taste'],
+            'Indigestion': ['indigestion', 'upset stomach', 'stomach upset'],
+            'Heartburn': ['heartburn', 'acid reflux', 'reflux', 'burning chest'],
+            'Bloating': ['bloating', 'bloated', 'abdominal bloating'],
+            'Constipation': ['constipation', 'constipated', 'hard stool'],
+            'Loss of Appetite': ['loss of appetite', 'no appetite', 'not hungry'],
+            'Sensitivity to Light': ['sensitivity to light', 'light sensitivity', 'photophobia', 'light hurt'],
+            'Blurred Vision': ['blurred vision', 'blurry vision', 'vision blurred', 'fuzzy vision'],
+            'Double Vision': ['double vision', 'diplopia', 'seeing double'],
+            'Red Eyes': ['red eyes', 'bloodshot', 'eye redness'],
+            'Itching': ['itching', 'itchy', 'itches', 'pruritus'],
+            'Hives': ['hives', 'urticaria', 'welts'],
+            'Acne': ['acne', 'pimples', 'breakouts', 'pimple'],
+            'Swelling': ['swelling', 'swollen', 'edema', 'puffiness'],
+            'Bruising': ['bruising', 'bruise', 'bruised', 'hematoma'],
+            'Chills': ['chills', 'chilling', 'shivering', 'shiver'],
+            'Night Sweats': ['night sweats', 'night sweat', 'sweating at night'],
+            'Swollen Lymph Nodes': ['swollen lymph', 'lymph node', 'lymphadenopathy'],
+            'Ear Pain': ['ear pain', 'ear ache', 'otitis'],
+            'Eye Pain': ['eye pain', 'eye ache', 'eye hurt'],
+            'Leg Pain': ['leg pain', 'leg ache', 'leg hurt'],
+            'Arm Pain': ['arm pain', 'arm ache', 'arm hurt'],
+            'Knee Pain': ['knee pain', 'knee ache', 'knee hurt'],
+            'Shoulder Pain': ['shoulder pain', 'shoulder ache', 'shoulder hurt'],
+            'Hip Pain': ['hip pain', 'hip ache', 'hip hurt'],
+        }
+        
+        text_lower = text.lower()
+        found_symptoms = []
+        
+        # Check for negations (common patterns showing they DON'T have symptom)
+        negation_patterns = [
+            'no ', 'not ', 'don\'t have', 'don\'t have ', 'didn\'t have', 'never had',
+            'no fever', 'no cough', 'no pain', 'without ', 'none of'
+        ]
+        
+        for symptom_name, keywords in symptom_keywords.items():
+            for keyword in keywords:
+                if keyword in text_lower:
+                    # Check if this symptom is negated
+                    # Look for negation words near the keyword
+                    keyword_idx = text_lower.find(keyword)
+                    
+                    # Get 20 chars before keyword
+                    context_start = max(0, keyword_idx - 20)
+                    context = text_lower[context_start:keyword_idx + len(keyword) + 10]
+                    
+                    # Check if negation is nearby
+                    is_negated = any(neg in context for neg in negation_patterns)
+                    
+                    if not is_negated:  # Only add if NOT negated
+                        if symptom_name not in found_symptoms:
+                            found_symptoms.append(symptom_name)
+                        break  # Found this symptom, move to next
+        
+        return found_symptoms

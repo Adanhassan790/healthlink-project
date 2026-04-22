@@ -6,9 +6,13 @@ from .forms import TriageForm
 from .models import TriageSession, Symptom, SavedAssessment
 from .ml_service import AdvancedSymptomTriageModel
 from .chat_bot import HealthLinkChatBot
+from .llm_triage_service import LLMTriageService
 from users.decorators import patient_required
 import json
+import logging
 from django.views.decorators.csrf import csrf_exempt
+
+logger = logging.getLogger(__name__)
 
 
 def ensure_default_symptoms():
@@ -265,79 +269,125 @@ def triage_chat(request):
 @csrf_exempt
 @login_required
 def triage_chat_api(request):
-    """API endpoint for chat interactions"""
+    """
+    API endpoint for LLM-based chat interactions.
+    Uses OpenAI GPT when available, falls back to rule-based system.
+    """
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             user_message = data.get('message', '').strip()
-            
+
+            if not user_message:
+                return JsonResponse({'error': 'Empty message'}, status=400)
+
             # Handle reset command
             if user_message == '__reset__':
-                if 'chatbot_data' in request.session:
-                    del request.session['chatbot_data']
+                if 'llm_triage_service' in request.session:
+                    del request.session['llm_triage_service']
                 request.session.modified = True
-                return JsonResponse({'response': 'Session reset', 'ready_for_results': False, 'symptoms': []})
-            
-            if 'chatbot_data' in request.session:
-                chatbot_data = request.session['chatbot_data']
-                chatbot = HealthLinkChatBot(user=request.user)
-                chatbot.symptoms = [
-                    Symptom.objects.get(id=sid)
-                    for sid in chatbot_data.get('symptoms', [])
-                    if Symptom.objects.filter(id=sid).exists()
-                ]
-                chatbot.symptom_details = chatbot_data.get('symptom_details', {})
-                chatbot.state = chatbot_data.get('state', 'greeting')
-                chatbot.conversation_history = chatbot_data.get('conversation', [])
-                chatbot.details_gathered = chatbot_data.get('details_gathered', False)
-                chatbot.asked_followups = set(chatbot_data.get('asked_followups', []))
-                chatbot.emergency_detected = chatbot_data.get('emergency_detected', False)
+                return JsonResponse({
+                    'response': '✨ Session reset. Starting fresh!',
+                    'ready_for_results': False,
+                    'symptoms': [],
+                    'state': 'greeting',
+                    'mode': 'fallback'
+                })
+
+            # Initialize or retrieve LLM service
+            api_available = False
+            if 'llm_triage_service' in request.session:
+                service_data = request.session['llm_triage_service']
+                llm_service = LLMTriageService(use_openai=False)  # Initialize without API first
+                llm_service.conversation_history = service_data.get('conversation_history', [])
+                llm_service.symptoms_identified = service_data.get('symptoms_identified', [])
+                llm_service.state = service_data.get('state', 'greeting')
+                api_available = service_data.get('api_available', False)
             else:
-                chatbot = HealthLinkChatBot(user=request.user)
-            
-            response = chatbot.process_message(user_message)
-            
-            request.session['chatbot_data'] = {
-                'symptoms': [s.id for s in chatbot.symptoms],
-                'symptom_details': chatbot.symptom_details,
-                'state': chatbot.state,
-                'conversation': chatbot.conversation_history,
-                'details_gathered': chatbot.details_gathered,
-                'asked_followups': list(chatbot.asked_followups),
-                'emergency_detected': chatbot.emergency_detected
+                llm_service = LLMTriageService(use_openai=True)  # Try with API
+                api_available = llm_service.api_available
+                
+                # Get initial greeting
+                greeting = llm_service.get_greeting()
+                
+                request.session['llm_triage_service'] = {
+                    'conversation_history': [],
+                    'symptoms_identified': [],
+                    'state': 'greeting',
+                    'api_available': api_available
+                }
+
+            # Process user message
+            analysis = llm_service.process_patient_message(user_message)
+
+            # Save session state
+            request.session['llm_triage_service'] = {
+                'conversation_history': llm_service.conversation_history,
+                'symptoms_identified': llm_service.symptoms_identified,
+                'state': llm_service.state,
+                'api_available': llm_service.api_available
             }
             request.session.modified = True
-            
-            if chatbot.state == 'recommendation':
+
+            # Prepare response
+            response_text = analysis.get('next_question', 'Please continue describing your symptoms.')
+            mode = 'openai' if llm_service.api_available else 'fallback'
+
+            # Handle recommendation state
+            if analysis.get('ready_for_recommendation') and analysis.get('recommendation'):
+                recommendation = analysis['recommendation']
+                
+                # Create triage session
                 triage_session = TriageSession.objects.create(
                     user=request.user,
                     session_type='chat',
-                    predicted_specialty='Pending',
-                    confidence_score=0.0,
-                    conversation_history=chatbot.conversation_history
+                    predicted_specialty=recommendation.get('primary_specialty', 'General Medicine'),
+                    confidence_score=0.85,
+                    conversation_history=llm_service.conversation_history,
+                    additional_notes=json.dumps(analysis, indent=2)
                 )
-                
-                for symptom in chatbot.symptoms:
+
+                # Add identified symptoms to session
+                for symptom_name in llm_service.symptoms_identified:
+                    symptom, _ = Symptom.objects.get_or_create(
+                        name=symptom_name,
+                        defaults={'category': 'general', 'body_part': 'General'}
+                    )
                     triage_session.symptoms.add(symptom)
-                
+
                 return JsonResponse({
-                    'response': response,
+                    'response': response_text,
                     'session_id': triage_session.id,
                     'ready_for_results': True,
-                    'symptoms': [s.name for s in chatbot.symptoms]
+                    'symptoms': llm_service.symptoms_identified,
+                    'state': 'recommendation',
+                    'recommendation': recommendation,
+                    'mode': mode,
+                    'api_available': llm_service.api_available
                 })
-            
+
             return JsonResponse({
-                'response': response,
+                'response': response_text,
                 'ready_for_results': False,
-                'symptoms': [s.name for s in chatbot.symptoms]
+                'symptoms': llm_service.symptoms_identified,
+                'state': llm_service.state,
+                'severity': analysis.get('severity_assessment', 'medium'),
+                'emergency_alert': analysis.get('emergency_alert', False),
+                'mode': mode,
+                'api_available': llm_service.api_available
             })
-            
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON in request'}, status=400)
         except Exception as e:
-            print(f"Chat API Error: {e}")
-            return JsonResponse({'error': str(e)}, status=500)
-    
-    return JsonResponse({'error': 'Invalid request'}, status=400)
+            logger.error(f"Chat API Error: {e}", exc_info=True)
+            return JsonResponse({
+                'error': str(e),
+                'message': 'An error occurred. Please try again.',
+                'response': 'I apologize for the technical difficulty. Please try describing your symptoms again.'
+            }, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
 def fallback_prediction(symptoms):

@@ -67,6 +67,10 @@ class VideoCall(models.Model):
     caller_ice_candidates = models.TextField(null=True, blank=True)  # JSON array of ICE candidates
     receiver_ice_candidates = models.TextField(null=True, blank=True)  # JSON array of ICE candidates
     
+    # Call recording
+    recording_enabled = models.BooleanField(default=False)  # Whether call was recorded
+    recording_url = models.URLField(null=True, blank=True)  # URL to recorded call (if available)
+    
     # Call duration in seconds
     duration = models.PositiveIntegerField(default=0)
     
