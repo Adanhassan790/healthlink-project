@@ -16,8 +16,6 @@ def patient_register(request):
         form = PatientRegistrationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            # Create patient profile
-            PatientProfile.objects.create(user=user)
             login(request, user)
             return redirect('dashboard')
     else:
@@ -29,12 +27,6 @@ def doctor_register(request):
         form = DoctorRegistrationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            # Create doctor profile
-            DoctorProfile.objects.create(
-                user=user,
-                license_number=form.cleaned_data['license_number'],
-                specialization=form.cleaned_data['specialization']
-            )
             login(request, user)
             return redirect('dashboard')
     else:
