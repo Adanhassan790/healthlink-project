@@ -3,15 +3,22 @@ from django.contrib.auth.forms import UserCreationForm
 from .models import CustomUser, PatientProfile, DoctorProfile
 
 class PatientRegistrationForm(UserCreationForm):
-    # Patient profile fields
-    blood_type = forms.ChoiceField(
-        choices=[('', 'Select Blood Type'), ('A+', 'A+'), ('A-', 'A-'), ('B+', 'B+'), ('B-', 'B-'), 
-                 ('AB+', 'AB+'), ('AB-', 'AB-'), ('O+', 'O+'), ('O-', 'O-')],
-        required=False
-    )
-    emergency_contact = forms.CharField(max_length=100, required=False)
-    allergies = forms.CharField(widget=forms.Textarea, required=False)
-    medical_history = forms.CharField(widget=forms.Textarea, required=False)
+    # Patient profile fields - optional for initial registration
+    BLOOD_TYPE_CHOICES = [
+        ('', 'Select Blood Type'),
+        ('O+', 'O+'),
+        ('O-', 'O-'),
+        ('A+', 'A+'),
+        ('A-', 'A-'),
+        ('B+', 'B+'),
+        ('B-', 'B-'),
+        ('AB+', 'AB+'),
+        ('AB-', 'AB-'),
+    ]
+    blood_type = forms.ChoiceField(choices=BLOOD_TYPE_CHOICES, required=False)
+    emergency_contact = forms.CharField(max_length=100, required=False, widget=forms.TextInput(attrs={'placeholder': 'Name and phone'}))
+    allergies = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label='Allergies')
+    medical_history = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label='Medical History')
 
     class Meta:
         model = CustomUser
@@ -26,15 +33,31 @@ class PatientRegistrationForm(UserCreationForm):
             'password2',
         ]
         widgets = {
+            'username': forms.TextInput(attrs={'autocomplete': 'off'}),
+            'email': forms.EmailInput(),
+            'phone_number': forms.TextInput(),
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
         }
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if CustomUser.objects.filter(username=username).exists():
+            raise forms.ValidationError('This username is already taken.')
+        return username
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if CustomUser.objects.filter(email=email).exists():
+            raise forms.ValidationError('This email is already registered.')
+        return email
 
     def save(self, commit=True):
         user = super().save(commit=False)
         user.user_type = 'patient'
+        
         if commit:
-            user.save()
             try:
+                user.save()
                 # Create patient profile with additional information
                 PatientProfile.objects.create(
                     user=user,
@@ -44,21 +67,20 @@ class PatientRegistrationForm(UserCreationForm):
                     medical_history=self.cleaned_data.get('medical_history', '')
                 )
             except Exception as e:
-                # If profile creation fails, still return the user but log the error
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Failed to create PatientProfile for {user.username}: {str(e)}")
-                raise
+                # Delete user if profile creation fails
+                user.delete()
+                raise forms.ValidationError(f'Error creating account: {str(e)}')
+        
         return user
 
 
 class DoctorRegistrationForm(UserCreationForm):
     # Doctor profile fields
-    license_number = forms.CharField(max_length=50)
-    specialization = forms.CharField(max_length=100)
-    years_of_experience = forms.IntegerField(min_value=0, max_value=50)
+    license_number = forms.CharField(max_length=50, help_text='Medical license number')
+    specialization = forms.CharField(max_length=100, help_text='Your medical specialization')
+    years_of_experience = forms.IntegerField(min_value=0, max_value=50, initial=0)
     consultation_fee = forms.DecimalField(max_digits=10, decimal_places=2, min_value=0)
-    bio = forms.CharField(widget=forms.Textarea, required=False)
+    bio = forms.CharField(widget=forms.Textarea(attrs={'rows': 4}), required=False, label='Professional Bio')
 
     class Meta:
         model = CustomUser
@@ -73,15 +95,37 @@ class DoctorRegistrationForm(UserCreationForm):
             'password2',
         ]
         widgets = {
+            'username': forms.TextInput(attrs={'autocomplete': 'off'}),
+            'email': forms.EmailInput(),
+            'phone_number': forms.TextInput(),
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
         }
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if CustomUser.objects.filter(username=username).exists():
+            raise forms.ValidationError('This username is already taken.')
+        return username
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if CustomUser.objects.filter(email=email).exists():
+            raise forms.ValidationError('This email is already registered.')
+        return email
+
+    def clean_license_number(self):
+        license_number = self.cleaned_data.get('license_number')
+        if DoctorProfile.objects.filter(license_number=license_number).exists():
+            raise forms.ValidationError('This license number is already registered.')
+        return license_number
 
     def save(self, commit=True):
         user = super().save(commit=False)
         user.user_type = 'doctor'
+        
         if commit:
-            user.save()
             try:
+                user.save()
                 # Create doctor profile with all information
                 DoctorProfile.objects.create(
                     user=user,
@@ -92,11 +136,10 @@ class DoctorRegistrationForm(UserCreationForm):
                     bio=self.cleaned_data.get('bio', '')
                 )
             except Exception as e:
-                # If profile creation fails, still return the user but log the error
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Failed to create DoctorProfile for {user.username}: {str(e)}")
-                raise
+                # Delete user if profile creation fails
+                user.delete()
+                raise forms.ValidationError(f'Error creating account: {str(e)}')
+        
         return user
 
 
