@@ -55,31 +55,26 @@ class PatientRegistrationForm(UserCreationForm):
         import logging
         logger = logging.getLogger(__name__)
         
-        print(f"\n[PATIENT FORM SAVE] Starting save process")
-        print(f"Cleaned data: {self.cleaned_data}")
+        logger.warning(f"\n[PATIENT FORM SAVE] Starting save process")
+        logger.warning(f"Cleaned data keys: {self.cleaned_data.keys()}")
         
         user = super().save(commit=False)
         user.user_type = 'patient'
-        logger.info(f"[FORM] Created user object: {user.username}")
-        print(f"[FORM] Created user object: {user.username}")
+        logger.warning(f"[FORM] Created user object: {user.username}")
         
         if commit:
             try:
-                logger.info(f"[FORM] Saving user to database...")
-                print(f"[FORM] Saving user to database...")
+                logger.warning(f"[FORM] Saving user to database...")
                 user.save()
-                logger.info(f"[FORM] User saved successfully (ID: {user.id})")
-                print(f"[FORM] User saved successfully (ID: {user.id})")
+                logger.warning(f"[FORM] User saved successfully (ID: {user.id})")
                 
-                logger.info(f"[FORM] Creating PatientProfile...")
-                print(f"[FORM] Creating PatientProfile...")
+                logger.warning(f"[FORM] Creating PatientProfile...")
                 blood_type = self.cleaned_data.get('blood_type', '')
                 emergency_contact = self.cleaned_data.get('emergency_contact', '')
                 allergies = self.cleaned_data.get('allergies', '')
                 medical_history = self.cleaned_data.get('medical_history', '')
                 
-                logger.info(f"[FORM] Profile data: blood_type={blood_type}, emergency_contact={emergency_contact}")
-                print(f"[FORM] Profile data: blood_type={blood_type}, emergency_contact={emergency_contact}")
+                logger.warning(f"[FORM] Profile data: blood_type={blood_type}, emergency_contact={emergency_contact}")
                 
                 profile = PatientProfile.objects.create(
                     user=user,
@@ -88,15 +83,13 @@ class PatientRegistrationForm(UserCreationForm):
                     allergies=allergies,
                     medical_history=medical_history
                 )
-                logger.info(f"[FORM] PatientProfile created successfully")
-                print(f"[FORM] PatientProfile created successfully")
+                logger.warning(f"[FORM] PatientProfile created successfully")
                 
             except Exception as e:
                 logger.error(f"[FORM] Error during profile creation: {type(e).__name__}: {str(e)}", exc_info=True)
-                print(f"[FORM] Error during profile creation: {type(e).__name__}: {str(e)}")
                 try:
                     user.delete()
-                    logger.info(f"[FORM] User deleted due to profile creation failure")
+                    logger.warning(f"[FORM] User deleted due to profile creation failure")
                 except:
                     pass
                 raise
@@ -153,40 +146,27 @@ class DoctorRegistrationForm(UserCreationForm):
         import logging
         logger = logging.getLogger(__name__)
         
-        user = super().save(commit=False)
-        user.user_type = 'doctor'
-        logger.info(f"[FORM] Created user object: {user.username}")
-        
-    def save(self, commit=True):
-        import logging
-        logger = logging.getLogger(__name__)
-        
-        print(f"\n[DOCTOR FORM SAVE] Starting save process")
-        print(f"Cleaned data: {self.cleaned_data}")
+        logger.warning(f"\n[DOCTOR FORM SAVE] Starting save process")
+        logger.warning(f"Cleaned data keys: {self.cleaned_data.keys()}")
         
         user = super().save(commit=False)
         user.user_type = 'doctor'
-        logger.info(f"[FORM] Created user object: {user.username}")
-        print(f"[FORM] Created user object: {user.username}")
+        logger.warning(f"[FORM] Created user object: {user.username}")
         
         if commit:
             try:
-                logger.info(f"[FORM] Saving user to database...")
-                print(f"[FORM] Saving user to database...")
+                logger.warning(f"[FORM] Saving user to database...")
                 user.save()
-                logger.info(f"[FORM] User saved successfully (ID: {user.id})")
-                print(f"[FORM] User saved successfully (ID: {user.id})")
+                logger.warning(f"[FORM] User saved successfully (ID: {user.id})")
                 
-                logger.info(f"[FORM] Creating DoctorProfile...")
-                print(f"[FORM] Creating DoctorProfile...")
+                logger.warning(f"[FORM] Creating DoctorProfile...")
                 license_number = self.cleaned_data['license_number']
                 specialization = self.cleaned_data['specialization']
                 years_of_experience = self.cleaned_data['years_of_experience']
                 consultation_fee = self.cleaned_data['consultation_fee']
                 bio = self.cleaned_data.get('bio', '')
                 
-                logger.info(f"[FORM] Profile data: license={license_number}, spec={specialization}, exp={years_of_experience}, fee={consultation_fee}")
-                print(f"[FORM] Profile data: license={license_number}, spec={specialization}, exp={years_of_experience}, fee={consultation_fee}")
+                logger.warning(f"[FORM] Profile data: license={license_number}, spec={specialization}, exp={years_of_experience}, fee={consultation_fee}")
                 
                 profile = DoctorProfile.objects.create(
                     user=user,
@@ -196,15 +176,13 @@ class DoctorRegistrationForm(UserCreationForm):
                     consultation_fee=consultation_fee,
                     bio=bio
                 )
-                logger.info(f"[FORM] DoctorProfile created successfully")
-                print(f"[FORM] DoctorProfile created successfully")
+                logger.warning(f"[FORM] DoctorProfile created successfully")
                 
             except Exception as e:
                 logger.error(f"[FORM] Error during profile creation: {type(e).__name__}: {str(e)}", exc_info=True)
-                print(f"[FORM] Error during profile creation: {type(e).__name__}: {str(e)}")
                 try:
                     user.delete()
-                    logger.info(f"[FORM] User deleted due to profile creation failure")
+                    logger.warning(f"[FORM] User deleted due to profile creation failure")
                 except:
                     pass
                 raise
