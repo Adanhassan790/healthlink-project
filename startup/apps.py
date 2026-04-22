@@ -1,5 +1,5 @@
 """
-Startup app for running migrations on app initialization.
+Startup app for running migrations and initial data setup on app initialization.
 This ensures migrations run whenever Django starts, regardless of entry point.
 """
 from django.apps import AppConfig
@@ -14,7 +14,7 @@ class StartupAppConfig(AppConfig):
     verbose_name = "Application Startup"
 
     def ready(self):
-        """Run migrations when app is ready"""
+        """Run migrations and populate initial data when app is ready"""
         logger.info("=" * 70)
         logger.info("STARTUP: Running database migrations...")
         logger.info("=" * 70)
@@ -25,8 +25,15 @@ class StartupAppConfig(AppConfig):
             logger.info("=" * 70)
             logger.info("STARTUP: Migrations completed successfully!")
             logger.info("=" * 70)
+            
+            # Populate sample doctors if database is empty
+            logger.info("")
+            logger.info("STARTUP: Populating sample data...")
+            call_command('populate_doctors', verbosity=1, interactive=False)
+            logger.info("STARTUP: Sample data populated!")
+            
         except Exception as e:
-            logger.error(f"STARTUP: Failed to run migrations: {str(e)}")
-            # Don't exit, let Django continue but at least we logged the error
+            logger.error(f"STARTUP: Failed during initialization: {str(e)}")
+            # Don't exit, let Django continue but log the error
             import traceback
             logger.error(traceback.format_exc())
