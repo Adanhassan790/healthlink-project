@@ -28,54 +28,98 @@ import logging
 logger = logging.getLogger(__name__)
 
 def patient_register(request):
-    if request.method == 'POST':
-        form = PatientRegistrationForm(request.POST)
-        logger.info(f"POST received. Form valid: {form.is_valid()}")
-        
-        if form.is_valid():
-            try:
-                user = form.save()
-                logger.info(f"✓ Patient created: {user.username}")
-                login(request, user)
-                messages.success(request, f'Welcome {user.first_name}! Your account has been created.')
-                return redirect('dashboard')
-            except Exception as e:
-                logger.error(f"✗ Error saving patient: {str(e)}", exc_info=True)
-                messages.error(request, f'Error creating account: {str(e)}')
-        else:
-            logger.warning(f"Form invalid: {form.errors}")
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
-    else:
-        form = PatientRegistrationForm()
+    logger.info("=" * 70)
+    logger.info("PATIENT REGISTRATION - START")
+    logger.info("=" * 70)
     
-    return render(request, 'healthlink/users/patient_register.html', {'form': form})
+    try:
+        if request.method == 'POST':
+            logger.info(f"[1] POST request received")
+            logger.info(f"[2] POST keys: {list(request.POST.keys())}")
+            
+            try:
+                form = PatientRegistrationForm(request.POST)
+                logger.info(f"[3] Form created, is_valid: {form.is_valid()}")
+                
+                if not form.is_valid():
+                    logger.warning(f"[4] Form validation failed: {form.errors}")
+                    return render(request, 'healthlink/users/patient_register.html', {'form': form})
+                
+                logger.info(f"[5] Form is valid, attempting save...")
+                user = form.save()
+                logger.info(f"[6] User saved successfully: {user.username}")
+                
+                login(request, user)
+                logger.info(f"[7] User logged in")
+                
+                messages.success(request, f'Welcome {user.first_name}! Your account has been created.')
+                logger.info(f"[8] Success message added, redirecting to dashboard")
+                
+                return redirect('dashboard')
+                
+            except Exception as e:
+                logger.error(f"[ERROR] Form processing error: {type(e).__name__}: {str(e)}", exc_info=True)
+                messages.error(request, f'Registration failed: {str(e)}')
+                form = PatientRegistrationForm() if 'form' not in locals() else form
+                return render(request, 'healthlink/users/patient_register.html', {'form': form})
+        else:
+            logger.info("[GET] Displaying registration form")
+            form = PatientRegistrationForm()
+            return render(request, 'healthlink/users/patient_register.html', {'form': form})
+            
+    except Exception as e:
+        logger.error(f"[CRITICAL] Unexpected error in patient_register: {type(e).__name__}: {str(e)}", exc_info=True)
+        return render(request, 'healthlink/users/patient_register.html', {
+            'error': f'Critical error: {str(e)}',
+            'form': PatientRegistrationForm()
+        })
 
 def doctor_register(request):
-    if request.method == 'POST':
-        form = DoctorRegistrationForm(request.POST)
-        logger.info(f"POST received. Form valid: {form.is_valid()}")
-        
-        if form.is_valid():
-            try:
-                user = form.save()
-                logger.info(f"✓ Doctor created: {user.username}")
-                login(request, user)
-                messages.success(request, f'Welcome Dr. {user.first_name}! Your account has been created.')
-                return redirect('dashboard')
-            except Exception as e:
-                logger.error(f"✗ Error saving doctor: {str(e)}", exc_info=True)
-                messages.error(request, f'Error creating account: {str(e)}')
-        else:
-            logger.warning(f"Form invalid: {form.errors}")
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
-    else:
-        form = DoctorRegistrationForm()
+    logger.info("=" * 70)
+    logger.info("DOCTOR REGISTRATION - START")
+    logger.info("=" * 70)
     
-    return render(request, 'healthlink/users/doctor_register.html', {'form': form})
+    try:
+        if request.method == 'POST':
+            logger.info(f"[1] POST request received")
+            logger.info(f"[2] POST keys: {list(request.POST.keys())}")
+            
+            try:
+                form = DoctorRegistrationForm(request.POST)
+                logger.info(f"[3] Form created, is_valid: {form.is_valid()}")
+                
+                if not form.is_valid():
+                    logger.warning(f"[4] Form validation failed: {form.errors}")
+                    return render(request, 'healthlink/users/doctor_register.html', {'form': form})
+                
+                logger.info(f"[5] Form is valid, attempting save...")
+                user = form.save()
+                logger.info(f"[6] User saved successfully: {user.username}")
+                
+                login(request, user)
+                logger.info(f"[7] User logged in")
+                
+                messages.success(request, f'Welcome Dr. {user.first_name}! Your account has been created.')
+                logger.info(f"[8] Success message added, redirecting to dashboard")
+                
+                return redirect('dashboard')
+                
+            except Exception as e:
+                logger.error(f"[ERROR] Form processing error: {type(e).__name__}: {str(e)}", exc_info=True)
+                messages.error(request, f'Registration failed: {str(e)}')
+                form = DoctorRegistrationForm() if 'form' not in locals() else form
+                return render(request, 'healthlink/users/doctor_register.html', {'form': form})
+        else:
+            logger.info("[GET] Displaying registration form")
+            form = DoctorRegistrationForm()
+            return render(request, 'healthlink/users/doctor_register.html', {'form': form})
+            
+    except Exception as e:
+        logger.error(f"[CRITICAL] Unexpected error in doctor_register: {type(e).__name__}: {str(e)}", exc_info=True)
+        return render(request, 'healthlink/users/doctor_register.html', {
+            'error': f'Critical error: {str(e)}',
+            'form': DoctorRegistrationForm()
+        })
 
 @login_required
 def dashboard(request):

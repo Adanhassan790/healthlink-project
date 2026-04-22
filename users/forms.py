@@ -52,24 +52,44 @@ class PatientRegistrationForm(UserCreationForm):
         return email
 
     def save(self, commit=True):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         user = super().save(commit=False)
         user.user_type = 'patient'
+        logger.info(f"[FORM] Created user object: {user.username}")
         
         if commit:
             try:
+                logger.info(f"[FORM] Saving user to database...")
                 user.save()
-                # Create patient profile with additional information
-                PatientProfile.objects.create(
+                logger.info(f"[FORM] User saved successfully (ID: {user.id})")
+                
+                logger.info(f"[FORM] Creating PatientProfile...")
+                blood_type = self.cleaned_data.get('blood_type', '')
+                emergency_contact = self.cleaned_data.get('emergency_contact', '')
+                allergies = self.cleaned_data.get('allergies', '')
+                medical_history = self.cleaned_data.get('medical_history', '')
+                
+                logger.info(f"[FORM] Profile data: blood_type={blood_type}, emergency_contact={emergency_contact}")
+                
+                profile = PatientProfile.objects.create(
                     user=user,
-                    blood_type=self.cleaned_data.get('blood_type', ''),
-                    emergency_contact=self.cleaned_data.get('emergency_contact', ''),
-                    allergies=self.cleaned_data.get('allergies', ''),
-                    medical_history=self.cleaned_data.get('medical_history', '')
+                    blood_type=blood_type,
+                    emergency_contact=emergency_contact,
+                    allergies=allergies,
+                    medical_history=medical_history
                 )
+                logger.info(f"[FORM] PatientProfile created successfully")
+                
             except Exception as e:
-                # Delete user if profile creation fails
-                user.delete()
-                raise forms.ValidationError(f'Error creating account: {str(e)}')
+                logger.error(f"[FORM] Error during profile creation: {type(e).__name__}: {str(e)}", exc_info=True)
+                try:
+                    user.delete()
+                    logger.info(f"[FORM] User deleted due to profile creation failure")
+                except:
+                    pass
+                raise
         
         return user
 
@@ -120,25 +140,46 @@ class DoctorRegistrationForm(UserCreationForm):
         return license_number
 
     def save(self, commit=True):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         user = super().save(commit=False)
         user.user_type = 'doctor'
+        logger.info(f"[FORM] Created user object: {user.username}")
         
         if commit:
             try:
+                logger.info(f"[FORM] Saving user to database...")
                 user.save()
-                # Create doctor profile with all information
-                DoctorProfile.objects.create(
+                logger.info(f"[FORM] User saved successfully (ID: {user.id})")
+                
+                logger.info(f"[FORM] Creating DoctorProfile...")
+                license_number = self.cleaned_data['license_number']
+                specialization = self.cleaned_data['specialization']
+                years_of_experience = self.cleaned_data['years_of_experience']
+                consultation_fee = self.cleaned_data['consultation_fee']
+                bio = self.cleaned_data.get('bio', '')
+                
+                logger.info(f"[FORM] Profile data: license={license_number}, spec={specialization}, exp={years_of_experience}, fee={consultation_fee}")
+                
+                profile = DoctorProfile.objects.create(
                     user=user,
-                    license_number=self.cleaned_data['license_number'],
-                    specialization=self.cleaned_data['specialization'],
-                    years_of_experience=self.cleaned_data['years_of_experience'],
-                    consultation_fee=self.cleaned_data['consultation_fee'],
-                    bio=self.cleaned_data.get('bio', '')
+                    license_number=license_number,
+                    specialization=specialization,
+                    years_of_experience=years_of_experience,
+                    consultation_fee=consultation_fee,
+                    bio=bio
                 )
+                logger.info(f"[FORM] DoctorProfile created successfully")
+                
             except Exception as e:
-                # Delete user if profile creation fails
-                user.delete()
-                raise forms.ValidationError(f'Error creating account: {str(e)}')
+                logger.error(f"[FORM] Error during profile creation: {type(e).__name__}: {str(e)}", exc_info=True)
+                try:
+                    user.delete()
+                    logger.info(f"[FORM] User deleted due to profile creation failure")
+                except:
+                    pass
+                raise
         
         return user
 
