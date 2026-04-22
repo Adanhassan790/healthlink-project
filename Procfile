@@ -1,2 +1,2 @@
-healthlink: gunicorn healthlink.wsgi
-release: python manage.py migrate
+release: python manage.py migrate --noinput
+web: python start_server.py

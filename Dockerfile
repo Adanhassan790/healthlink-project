@@ -31,11 +31,14 @@ RUN pip install -r requirements.txt --no-cache-dir --disable-pip-version-check
 # Copy project
 COPY . .
 
+# Make startup script executable
+RUN chmod +x /app/start_server.py
+
 # Collect static files (without requiring database)
 RUN python manage.py collectstatic --noinput --clear || true
 
 # Expose port
 EXPOSE 8000
 
-# Use Python startup script (avoids shell/line-ending issues)
-CMD ["python", "start_server.py"]
+# Use Python startup script with ENTRYPOINT (harder to override than CMD)
+ENTRYPOINT ["python", "start_server.py"]
