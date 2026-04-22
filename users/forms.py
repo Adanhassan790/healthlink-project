@@ -34,14 +34,21 @@ class PatientRegistrationForm(UserCreationForm):
         user.user_type = 'patient'
         if commit:
             user.save()
-            # Create patient profile with additional information
-            PatientProfile.objects.create(
-                user=user,
-                blood_type=self.cleaned_data.get('blood_type', ''),
-                emergency_contact=self.cleaned_data.get('emergency_contact', ''),
-                allergies=self.cleaned_data.get('allergies', ''),
-                medical_history=self.cleaned_data.get('medical_history', '')
-            )
+            try:
+                # Create patient profile with additional information
+                PatientProfile.objects.create(
+                    user=user,
+                    blood_type=self.cleaned_data.get('blood_type', ''),
+                    emergency_contact=self.cleaned_data.get('emergency_contact', ''),
+                    allergies=self.cleaned_data.get('allergies', ''),
+                    medical_history=self.cleaned_data.get('medical_history', '')
+                )
+            except Exception as e:
+                # If profile creation fails, still return the user but log the error
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to create PatientProfile for {user.username}: {str(e)}")
+                raise
         return user
 
 
@@ -74,15 +81,22 @@ class DoctorRegistrationForm(UserCreationForm):
         user.user_type = 'doctor'
         if commit:
             user.save()
-            # Create doctor profile with all information
-            DoctorProfile.objects.create(
-                user=user,
-                license_number=self.cleaned_data['license_number'],
-                specialization=self.cleaned_data['specialization'],
-                years_of_experience=self.cleaned_data['years_of_experience'],
-                consultation_fee=self.cleaned_data['consultation_fee'],
-                bio=self.cleaned_data.get('bio', '')
-            )
+            try:
+                # Create doctor profile with all information
+                DoctorProfile.objects.create(
+                    user=user,
+                    license_number=self.cleaned_data['license_number'],
+                    specialization=self.cleaned_data['specialization'],
+                    years_of_experience=self.cleaned_data['years_of_experience'],
+                    consultation_fee=self.cleaned_data['consultation_fee'],
+                    bio=self.cleaned_data.get('bio', '')
+                )
+            except Exception as e:
+                # If profile creation fails, still return the user but log the error
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to create DoctorProfile for {user.username}: {str(e)}")
+                raise
         return user
 
 

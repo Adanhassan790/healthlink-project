@@ -11,27 +11,69 @@ from .forms import (
 )
 from .models import PatientProfile, DoctorProfile
 
+from django.shortcuts import render, redirect
+from django.contrib.auth import login
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from .forms import (
+    PatientRegistrationForm, 
+    DoctorRegistrationForm, 
+    UserUpdateForm, 
+    PatientProfileForm, 
+    DoctorProfileForm
+)
+from .models import PatientProfile, DoctorProfile
+import logging
+
+logger = logging.getLogger(__name__)
+
 def patient_register(request):
-    if request.method == 'POST':
-        form = PatientRegistrationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            return redirect('dashboard')
-    else:
-        form = PatientRegistrationForm()
-    return render(request, 'healthlink/users/patient_register.html', {'form': form})
+    try:
+        if request.method == 'POST':
+            form = PatientRegistrationForm(request.POST)
+            if form.is_valid():
+                try:
+                    user = form.save()
+                    logger.info(f"Patient registered successfully: {user.username}")
+                    login(request, user)
+                    messages.success(request, f'Welcome {user.first_name}! Your account has been created.')
+                    return redirect('dashboard')
+                except Exception as e:
+                    logger.error(f"Error creating patient profile: {str(e)}", exc_info=True)
+                    messages.error(request, f'Error creating account: {str(e)}')
+            else:
+                logger.warning(f"Patient form validation failed: {form.errors}")
+        else:
+            form = PatientRegistrationForm()
+        
+        return render(request, 'healthlink/users/patient_register.html', {'form': form})
+    except Exception as e:
+        logger.error(f"Patient registration view error: {str(e)}", exc_info=True)
+        return render(request, 'healthlink/users/patient_register.html', {'error': 'An error occurred. Please try again.'})
 
 def doctor_register(request):
-    if request.method == 'POST':
-        form = DoctorRegistrationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            return redirect('dashboard')
-    else:
-        form = DoctorRegistrationForm()
-    return render(request, 'healthlink/users/doctor_register.html', {'form': form})
+    try:
+        if request.method == 'POST':
+            form = DoctorRegistrationForm(request.POST)
+            if form.is_valid():
+                try:
+                    user = form.save()
+                    logger.info(f"Doctor registered successfully: {user.username}")
+                    login(request, user)
+                    messages.success(request, f'Welcome Dr. {user.first_name}! Your account has been created.')
+                    return redirect('dashboard')
+                except Exception as e:
+                    logger.error(f"Error creating doctor profile: {str(e)}", exc_info=True)
+                    messages.error(request, f'Error creating account: {str(e)}')
+            else:
+                logger.warning(f"Doctor form validation failed: {form.errors}")
+        else:
+            form = DoctorRegistrationForm()
+        
+        return render(request, 'healthlink/users/doctor_register.html', {'form': form})
+    except Exception as e:
+        logger.error(f"Doctor registration view error: {str(e)}", exc_info=True)
+        return render(request, 'healthlink/users/doctor_register.html', {'error': 'An error occurred. Please try again.'})
 
 @login_required
 def dashboard(request):

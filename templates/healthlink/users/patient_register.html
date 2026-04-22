@@ -23,41 +23,59 @@
                         <p class="text-muted">Get access to quality healthcare from the comfort of your home</p>
                     </div>
 
-                    <form method="post">
+                    <form method="post" novalidate>
                         {% csrf_token %}
                         
-                        {% if form.errors %}
+                        {% if form.non_field_errors %}
                         <div class="alert alert-danger alert-dismissible fade show" role="alert">
                             <strong>Registration Error:</strong>
-                            {% for field, errors in form.errors.items %}
-                                {% for error in errors %}
-                                    <div>{{ field }}: {{ error }}</div>
-                                {% endfor %}
+                            {% for error in form.non_field_errors %}
+                                <div>{{ error }}</div>
                             {% endfor %}
                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
+                        {% endif %}
+                        
+                        {% if error %}
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            {{ error }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endif %}
+                        
+                        {% if messages %}
+                        {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
                         {% endif %}
                         
                         <!-- Personal Information -->
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="first_name" class="form-label">First Name *</label>
-                                <input type="text" class="form-control" id="first_name" name="first_name" required>
+                                <input type="text" class="form-control {% if form.first_name.errors %}is-invalid{% endif %}" id="first_name" name="first_name" required value="{{ form.first_name.value|default:'' }}">
+                                {% if form.first_name.errors %}<div class="invalid-feedback d-block">{{ form.first_name.errors.0 }}</div>{% endif %}
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="last_name" class="form-label">Last Name *</label>
-                                <input type="text" class="form-control" id="last_name" name="last_name" required>
+                                <input type="text" class="form-control {% if form.last_name.errors %}is-invalid{% endif %}" id="last_name" name="last_name" required value="{{ form.last_name.value|default:'' }}">
+                                {% if form.last_name.errors %}<div class="invalid-feedback d-block">{{ form.last_name.errors.0 }}</div>{% endif %}
                             </div>
                         </div>
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="username" class="form-label">Username *</label>
-                                <input type="text" class="form-control" id="username" name="username" required>
+                                <input type="text" class="form-control {% if form.username.errors %}is-invalid{% endif %}" id="username" name="username" required value="{{ form.username.value|default:'' }}">
+                                {% if form.username.errors %}<div class="invalid-feedback d-block">{{ form.username.errors.0 }}</div>{% endif %}
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="email" class="form-label">Email Address *</label>
-                                <input type="email" class="form-control" id="email" name="email" required>
+                                <input type="email" class="form-control {% if form.email.errors %}is-invalid{% endif %}" id="email" name="email" required value="{{ form.email.value|default:'' }}">
+                                {% if form.email.errors %}<div class="invalid-feedback d-block">{{ form.email.errors.0 }}</div>{% endif %}
                             </div>
                         </div>
 
@@ -65,11 +83,13 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="phone_number" class="form-label">Phone Number *</label>
-                                <input type="tel" class="form-control" id="phone_number" name="phone_number" required>
+                                <input type="tel" class="form-control {% if form.phone_number.errors %}is-invalid{% endif %}" id="phone_number" name="phone_number" required value="{{ form.phone_number.value|default:'' }}">
+                                {% if form.phone_number.errors %}<div class="invalid-feedback d-block">{{ form.phone_number.errors.0 }}</div>{% endif %}
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="date_of_birth" class="form-label">Date of Birth *</label>
-                                <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" required>
+                                <input type="date" class="form-control {% if form.date_of_birth.errors %}is-invalid{% endif %}" id="date_of_birth" name="date_of_birth" required value="{{ form.date_of_birth.value|default:'' }}">
+                                {% if form.date_of_birth.errors %}<div class="invalid-feedback d-block">{{ form.date_of_birth.errors.0 }}</div>{% endif %}
                             </div>
                         </div>
 
@@ -109,12 +129,14 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="password1" class="form-label">Password *</label>
-                                <input type="password" class="form-control" id="password1" name="password1" required>
+                                <input type="password" class="form-control {% if form.password1.errors %}is-invalid{% endif %}" id="password1" name="password1" required>
                                 <div class="form-text">Password must be at least 8 characters long.</div>
+                                {% if form.password1.errors %}<div class="invalid-feedback d-block">{{ form.password1.errors.0 }}</div>{% endif %}
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="password2" class="form-label">Confirm Password *</label>
-                                <input type="password" class="form-control" id="password2" name="password2" required>
+                                <input type="password" class="form-control {% if form.password2.errors %}is-invalid{% endif %}" id="password2" name="password2" required>
+                                {% if form.password2.errors %}<div class="invalid-feedback d-block">{{ form.password2.errors.0 }}</div>{% endif %}
                             </div>
                         </div>
 
