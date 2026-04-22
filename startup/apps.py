@@ -29,7 +29,7 @@ class StartupAppConfig(AppConfig):
             # Populate sample doctors if database is empty
             logger.info("")
             logger.info("STARTUP: Populating sample data...")
-            call_command('populate_doctors', verbosity=1, interactive=False)
+            call_command('populate_doctors', verbosity=1)
             logger.info("STARTUP: Sample data populated!")
             
         except Exception as e:
