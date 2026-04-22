@@ -36,7 +36,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     
-    # Local apps
+    # Local apps - startup must be first to run migrations
+    'startup',
     'users',
     'appointments',
     'triage',
