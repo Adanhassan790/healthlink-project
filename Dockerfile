@@ -34,8 +34,33 @@ COPY . .
 # Collect static files (without requiring database)
 RUN python manage.py collectstatic --noinput --clear || true
 
+# Create a startup shell script directly
+RUN echo '#!/bin/sh\n\
+set -e\n\
+echo "===================================================="\n\
+echo "Starting Django Application..."\n\
+echo "===================================================="\n\
+echo ""\n\
+echo "Step 1: Running Database Migrations..."\n\
+python manage.py migrate --noinput\n\
+echo ""\n\
+echo "Step 2: Migrations Complete"\n\
+echo "===================================================="\n\
+echo "Step 3: Starting Gunicorn Server..."\n\
+echo "===================================================="\n\
+echo ""\n\
+exec gunicorn \\\n\
+  --bind 0.0.0.0:8000 \\\n\
+  --workers 4 \\\n\
+  --worker-class sync \\\n\
+  --timeout 120 \\\n\
+  --access-logfile - \\\n\
+  --error-logfile - \\\n\
+  healthlink.wsgi:application' > /app/entrypoint.sh && \
+chmod +x /app/entrypoint.sh
+
 # Expose port
 EXPOSE 8000
 
-# Run startup script (migrations + gunicorn)
-CMD ["python", "start_server.py"]
+# Use the shell script as entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
