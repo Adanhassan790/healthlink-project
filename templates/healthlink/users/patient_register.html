@@ -26,6 +26,18 @@
                     <form method="post">
                         {% csrf_token %}
                         
+                        {% if form.errors %}
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <strong>Registration Error:</strong>
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <div>{{ field }}: {{ error }}</div>
+                                {% endfor %}
+                            {% endfor %}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endif %}
+                        
                         <!-- Personal Information -->
                         <div class="row">
                             <div class="col-md-6 mb-3">
@@ -52,45 +64,13 @@
                         <!-- Contact Information -->
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="phone" class="form-label">Phone Number *</label>
-                                <input type="tel" class="form-control" id="phone" name="phone" required>
+                                <label for="phone_number" class="form-label">Phone Number *</label>
+                                <input type="tel" class="form-control" id="phone_number" name="phone_number" required>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="date_of_birth" class="form-label">Date of Birth *</label>
                                 <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" required>
                             </div>
-                        </div>
-
-                        <!-- Medical Information -->
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="blood_type" class="form-label">Blood Type</label>
-                                <select class="form-select" id="blood_type" name="blood_type">
-                                    <option value="">Select Blood Type</option>
-                                    <option value="A+">A+</option>
-                                    <option value="A-">A-</option>
-                                    <option value="B+">B+</option>
-                                    <option value="B-">B-</option>
-                                    <option value="AB+">AB+</option>
-                                    <option value="AB-">AB-</option>
-                                    <option value="O+">O+</option>
-                                    <option value="O-">O-</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="emergency_contact" class="form-label">Emergency Contact</label>
-                                <input type="text" class="form-control" id="emergency_contact" name="emergency_contact" placeholder="Name and phone number">
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="allergies" class="form-label">Allergies</label>
-                            <textarea class="form-control" id="allergies" name="allergies" rows="3" placeholder="List any allergies you have..."></textarea>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="medical_conditions" class="form-label">Existing Medical Conditions</label>
-                            <textarea class="form-control" id="medical_conditions" name="medical_conditions" rows="3" placeholder="List any existing medical conditions..."></textarea>
                         </div>
 
                         <!-- Account Security -->
