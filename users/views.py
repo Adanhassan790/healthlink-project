@@ -36,13 +36,20 @@ def patient_register(request):
         if request.method == 'POST':
             logger.info(f"[1] POST request received")
             logger.info(f"[2] POST keys: {list(request.POST.keys())}")
+            print(f"\n\n=== PATIENT REGISTRATION POST ===")
+            print(f"POST Data: {dict(request.POST)}")
             
             try:
                 form = PatientRegistrationForm(request.POST)
-                logger.info(f"[3] Form created, is_valid: {form.is_valid()}")
+                is_valid = form.is_valid()
+                logger.info(f"[3] Form created, is_valid: {is_valid}")
+                print(f"Form is_valid: {is_valid}")
+                print(f"Form errors: {form.errors}")
+                print(f"Form non_field_errors: {form.non_field_errors()}")
                 
-                if not form.is_valid():
+                if not is_valid:
                     logger.warning(f"[4] Form validation failed: {form.errors}")
+                    print(f"[4] Returning form with errors to template")
                     return render(request, 'healthlink/users/patient_register.html', {'form': form})
                 
                 logger.info(f"[5] Form is valid, attempting save...")
@@ -83,13 +90,20 @@ def doctor_register(request):
         if request.method == 'POST':
             logger.info(f"[1] POST request received")
             logger.info(f"[2] POST keys: {list(request.POST.keys())}")
+            print(f"\n\n=== DOCTOR REGISTRATION POST ===")
+            print(f"POST Data: {dict(request.POST)}")
             
             try:
                 form = DoctorRegistrationForm(request.POST)
-                logger.info(f"[3] Form created, is_valid: {form.is_valid()}")
+                is_valid = form.is_valid()
+                logger.info(f"[3] Form created, is_valid: {is_valid}")
+                print(f"Form is_valid: {is_valid}")
+                print(f"Form errors: {form.errors}")
+                print(f"Form non_field_errors: {form.non_field_errors()}")
                 
-                if not form.is_valid():
+                if not is_valid:
                     logger.warning(f"[4] Form validation failed: {form.errors}")
+                    print(f"[4] Returning form with errors to template")
                     return render(request, 'healthlink/users/doctor_register.html', {'form': form})
                 
                 logger.info(f"[5] Form is valid, attempting save...")
