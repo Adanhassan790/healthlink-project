@@ -34,3 +34,8 @@ urlpatterns = [
 # Serve static and media files during development
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
+
+# Custom error handlers
+handler500 = 'healthlink.views.error_500'
+handler404 = 'healthlink.views.error_404'
+handler403 = 'healthlink.views.error_403'

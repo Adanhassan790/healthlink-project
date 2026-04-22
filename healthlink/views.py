@@ -81,12 +81,6 @@ def dashboard(request):
                 'upcoming_count': upcoming.count(),
                 'total_paid': total_paid,
                 'prescription_count': Prescription.objects.filter(patient=request.user).count(),
-            stats = {
-                'total_appointments': total_appointments,
-                'completed_appointments': completed_appointments,
-                'upcoming_count': upcoming.count(),
-                'total_paid': total_paid,
-                'prescription_count': Prescription.objects.filter(patient=request.user).count(),
             }
             upcoming_appointments = upcoming
             
@@ -125,8 +119,6 @@ def dashboard(request):
             elif request.user.user_type == 'doctor':
                 appointments = Appointment.objects.filter(doctor=request.user).order_by('-appointment_date')
         
-        logger.info(f"Dashboard rendered successfully for {request.user.username}")
-        
         return render(request, 'healthlink/users/dashboard.html', {
             'saved_assessments': saved_assessments,
             'appointments': appointments,
@@ -135,10 +127,16 @@ def dashboard(request):
             'recent_notifications': recent_notifications,
             'stats': stats,
         })
+        
     except Exception as e:
-        logger.error(f"Dashboard error for user {request.user.username}: {str(e)}", exc_info=True)
+        logger.exception(f"Error in dashboard view: {str(e)}")
         return render(request, 'healthlink/users/dashboard.html', {
-            'error': 'An error occurred while loading the dashboard.',
+            'error': 'Error loading dashboard. Please try again.',
+            'saved_assessments': [],
+            'appointments': [],
+            'prescriptions': [],
+            'upcoming_appointments': [],
+            'recent_notifications': [],
             'stats': {},
         })
 
@@ -171,3 +169,34 @@ def profile(request):
 def doctor_list(request):
     doctors = DoctorProfile.objects.select_related('user').all()
     return render(request, 'healthlink/doctor_list.html', {'doctors': doctors})
+
+# ============== ERROR HANDLERS ==============
+
+def error_500(request):
+    """Handle 500 Internal Server Error"""
+    import traceback
+    import sys
+    logger.error(f"500 Error on path: {request.path}", exc_info=sys.exc_info())
+    logger.error(f"Request method: {request.method}")
+    logger.error(f"User: {request.user if request.user.is_authenticated else 'Anonymous'}")
+    
+    return render(request, 'healthlink/errors/500.html', {
+        'error': 'An unexpected error occurred. Our team has been notified.'
+    }, status=500)
+
+def error_404(request, exception=None):
+    """Handle 404 Not Found Error"""
+    logger.warning(f"404 Error on path: {request.path}")
+    
+    return render(request, 'healthlink/errors/404.html', {
+        'error': 'Page not found.',
+        'path': request.path
+    }, status=404)
+
+def error_403(request, exception=None):
+    """Handle 403 Forbidden Error"""
+    logger.warning(f"403 Error on path: {request.path} for user: {request.user}")
+    
+    return render(request, 'healthlink/errors/403.html', {
+        'error': 'You do not have permission to access this page.'
+    }, status=403)

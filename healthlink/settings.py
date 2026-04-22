@@ -329,6 +329,11 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': False,
         },
+        'appointments': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
         'triage': {
             'handlers': ['console'],
             'level': 'DEBUG',
