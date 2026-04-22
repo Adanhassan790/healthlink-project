@@ -18,6 +18,7 @@ if not DEBUG:
     ALLOWED_HOSTS.extend([
         'railway.app',
         '*.railway.app',
+        '*.up.railway.app',  # Matches web-production-xxxx.up.railway.app
     ])
 
 # Application definition

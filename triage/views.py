@@ -4,7 +4,6 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from .forms import TriageForm
 from .models import TriageSession, Symptom, SavedAssessment
-from .ml_service import AdvancedSymptomTriageModel
 from .chat_bot import HealthLinkChatBot
 from .llm_triage_service import LLMTriageService
 from users.decorators import patient_required
@@ -192,6 +191,7 @@ def triage(request):
         print(f"DEBUG: Symptoms text for ML: {symptoms_text}")
         
         try:
+            from .ml_service import AdvancedSymptomTriageModel
             ml_model = AdvancedSymptomTriageModel()
             result = ml_model.predict_with_explanation(symptoms_text)
             predicted_specialty = result['primary_specialty']
