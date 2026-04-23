@@ -4,6 +4,7 @@ from django.views.generic import TemplateView
 from django.conf import settings
 from django.conf.urls.static import static
 from . import views
+from users import views as user_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -12,9 +13,9 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     
-    # Registration URLs 
-    path('register/patient/', views.patient_register, name='patient_register'),
-    path('register/doctor/', views.doctor_register, name='doctor_register'),
+    # Registration URLs - point to users.views for actual form processing
+    path('register/patient/', user_views.patient_register, name='patient_register'),
+    path('register/doctor/', user_views.doctor_register, name='doctor_register'),
     
     # Profile URL
     path('profile/', views.profile, name='profile'),

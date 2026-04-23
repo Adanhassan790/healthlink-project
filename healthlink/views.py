@@ -144,21 +144,6 @@ def logout_view(request):
     logout(request)
     return redirect('home')
 
-def patient_register(request):
-    # Use your actual patient registration template if it exists
-    return render(request, 'healthlink/users/patient_register.html', {
-        'title': 'Patient Registration'
-    })
-
-def doctor_register(request):
-    if request.method == 'POST':
-        return redirect('login')
-    
-    # Show the registration form for GET requests
-    return render(request, 'healthlink/users/doctor_register.html', {
-        'title': 'Doctor Registration'
-    })
-
 @login_required
 def profile(request):
     # Use your actual profile template if it exists
