@@ -6,8 +6,13 @@ from django.db.models import Q, Count
 from .models import Conversation, Message, VideoCall
 from appointments.models import Appointment
 from notifications.models import notify_new_message
+from .vonage_service import create_session, generate_token, get_api_key
 import json
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 @login_required
 def conversation_list(request):
@@ -47,16 +52,33 @@ def conversation_detail(request, conversation_id):
         if existing_call:
             return redirect('messaging:video_room', room_id=existing_call.room_id)
         
-        # Create new video call
-        room_id = f"healthlink-{conversation.id}-{uuid.uuid4().hex[:8]}"
-        video_call = VideoCall.objects.create(
-            room_id=room_id,
-            conversation=conversation,
-            caller=request.user,
-            receiver=receiver,
-            status='initiated'
-        )
-        return redirect('messaging:video_room', room_id=room_id)
+        # Create new video call with Vonage session
+        try:
+            room_id = f"healthlink-{conversation.id}-{uuid.uuid4().hex[:8]}"
+            vonage_session_id = create_session()
+            
+            video_call = VideoCall.objects.create(
+                room_id=room_id,
+                conversation=conversation,
+                caller=request.user,
+                receiver=receiver,
+                status='initiated',
+                vonage_session_id=vonage_session_id
+            )
+            logger.info(f"Created video call {video_call.id} with Vonage session {vonage_session_id}")
+            return redirect('messaging:video_room', room_id=room_id)
+        except Exception as e:
+            logger.error(f"Error creating Vonage session: {str(e)}")
+            # Fall back to creating call without session (will fail when joining)
+            room_id = f"healthlink-{conversation.id}-{uuid.uuid4().hex[:8]}"
+            video_call = VideoCall.objects.create(
+                room_id=room_id,
+                conversation=conversation,
+                caller=request.user,
+                receiver=receiver,
+                status='initiated'
+            )
+            return redirect('messaging:video_room', room_id=room_id)
     
     # Mark messages as read
     if request.user != conversation.doctor:
@@ -370,12 +392,12 @@ def check_incoming_call(request, conversation_id):
 @login_required
 def video_room(request, room_id):
     """Render the video call room"""
-    print(f"\n=== VIDEO_ROOM ===")
-    print(f"User: {request.user.username}, Room ID: {room_id}")
+    logger.info(f"\n=== VIDEO_ROOM ===")
+    logger.info(f"User: {request.user.username}, Room ID: {room_id}")
     
     video_call = get_object_or_404(VideoCall, room_id=room_id)
-    print(f"VideoCall ID: {video_call.id}, Status: {video_call.status}")
-    print(f"Caller: {video_call.caller.username}, Receiver: {video_call.receiver.username}")
+    logger.info(f"VideoCall ID: {video_call.id}, Status: {video_call.status}")
+    logger.info(f"Caller: {video_call.caller.username}, Receiver: {video_call.receiver.username}")
     
     conversation = video_call.conversation
     
@@ -390,14 +412,40 @@ def video_room(request, room_id):
         other_user = conversation.patient
     
     is_caller = request.user == video_call.caller
-    print(f"Is caller: {is_caller}")
+    logger.info(f"Is caller: {is_caller}")
     
-    return render(request, 'messaging/video_room.html', {
-        'video_call': video_call,
-        'conversation': conversation,
-        'other_user': other_user,
-        'is_caller': is_caller
-    })
+    # Generate Vonage token for this user
+    try:
+        if not video_call.vonage_session_id:
+            video_call.vonage_session_id = create_session()
+            video_call.save()
+        
+        # Generate token for this user
+        user_id = f"{request.user.id}_{request.user.username}"
+        token = generate_token(video_call.vonage_session_id, user_id=user_id)
+        api_key = get_api_key()
+        
+        context = {
+            'video_call': video_call,
+            'conversation': conversation,
+            'other_user': other_user,
+            'is_caller': is_caller,
+            'vonage_api_key': api_key,
+            'vonage_session_id': video_call.vonage_session_id,
+            'vonage_token': token,
+            'user_display_name': request.user.get_full_name() or request.user.username
+        }
+    except Exception as e:
+        logger.error(f"Error with Vonage setup: {str(e)}")
+        context = {
+            'video_call': video_call,
+            'conversation': conversation,
+            'other_user': other_user,
+            'is_caller': is_caller,
+            'vonage_error': str(e)
+        }
+    
+    return render(request, 'messaging/video_room.html', context)
 
 
 @login_required

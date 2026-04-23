@@ -46,6 +46,9 @@ class VideoCall(models.Model):
     # Unique room ID for the call
     room_id = models.CharField(max_length=100, unique=True, editable=False)
     
+    # Vonage Video API session ID
+    vonage_session_id = models.CharField(max_length=255, null=True, blank=True, db_index=True)
+    
     # Participants
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='video_calls')
     caller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='calls_made')
