@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Consultation - HealthLink</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://static.opentok.com/v2.20/js/opentok.min.js"></script>
     <style>
     * {
         margin: 0;
@@ -140,13 +141,89 @@
         top: 70px;
         left: 0;
         right: 0;
-        bottom: 0;
+        bottom: 100px;
         background: #0f172a;
+        display: flex;
+        gap: 10px;
+        overflow: hidden;
     }
     
-    #jitsi-container {
-        width: 100%;
-        height: 100%;
+    .video-stream {
+        flex: 1;
+        background: #1e293b;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+    
+    #vonage-publisher {
+        flex: 0 0 30%;
+        position: relative;
+        border: 2px solid rgba(102, 126, 234, 0.2);
+    }
+    
+    #vonage-subscribers {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    /* Control Toolbar */
+    .control-toolbar {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 50px;
+        padding: 12px 20px;
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        z-index: 200;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    }
+    
+    .control-btn {
+        width: 48px;
+        height: 48px;
+        border: none;
+        border-radius: 50%;
+        background: rgba(102, 126, 234, 0.2);
+        color: white;
+        cursor: pointer;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+    
+    .control-btn:hover {
+        background: rgba(102, 126, 234, 0.3);
+        transform: scale(1.05);
+    }
+    
+    .control-btn:active {
+        transform: scale(0.95);
+    }
+    
+    .control-btn.disabled {
+        opacity: 0.5;
+    }
+    
+    .control-btn.end-call-btn {
+        background: rgba(239, 68, 68, 0.2);
+        padding: 0 16px;
+        border-radius: 25px;
+        width: auto;
+    }
+    
+    .control-btn.end-call-btn:hover {
+        background: rgba(239, 68, 68, 0.3);
     }
     
     /* Professional Loading Overlay */
@@ -279,52 +356,6 @@
         border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
     
-    /* Permission Help */
-    #permissionHelp {
-        margin-top: 30px;
-        padding: 20px;
-        background: rgba(239, 68, 68, 0.15);
-        border: 1px solid rgba(239, 68, 68, 0.3);
-        border-radius: 12px;
-        backdrop-filter: blur(5px);
-        max-width: 400px;
-    }
-    
-    #permissionHelp i {
-        font-size: 30px;
-        color: #ef4444;
-        margin-bottom: 10px;
-    }
-    
-    #permissionHelp h4 {
-        color: white;
-        margin: 10px 0;
-        font-size: 16px;
-    }
-    
-    #permissionHelp p {
-        color: rgba(255, 255, 255, 0.7);
-        font-size: 13px;
-        margin: 10px 0;
-    }
-    
-    #permissionHelp button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        padding: 12px 30px;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        margin-top: 15px;
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-    
-    #permissionHelp button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-    }
-    
     /* Error State */
     .error-overlay {
         background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%) !important;
@@ -403,50 +434,67 @@
                     <br>✓ HIPAA-compliant platform
                 </div>
             </div>
-            
-            <!-- Permission help for mobile -->
-            <div id="permissionHelp" style="display: none;">
-                <i class="fas fa-exclamation-triangle"></i>
-                <h4>Camera Permission Needed</h4>
-                <p>To use video, please allow camera and microphone access.</p>
-                <p><strong>On Mobile:</strong> Tap the camera icon in your address bar or check your browser settings.</p>
-                <button onclick="retryPermission()">
-                    <i class="fas fa-redo me-2"></i> Retry
-                </button>
-            </div>
         </div>
     </div>
     
     <!-- Video Room -->
     <div class="video-wrapper">
-        <div id="jitsi-container"></div>
+        <div id="vonage-publisher" class="video-stream"></div>
+        <div id="vonage-subscribers" class="video-stream"></div>
+    </div>
+    
+    <!-- Control Toolbar -->
+    <div class="control-toolbar">
+        <button id="audioToggle" class="control-btn" title="Toggle Audio">
+            <i class="fas fa-microphone"></i>
+        </button>
+        <button id="videoToggle" class="control-btn" title="Toggle Video">
+            <i class="fas fa-video"></i>
+        </button>
+        <button id="endCallBtn" class="control-btn end-call-btn" title="End Call">
+            <i class="fas fa-phone-slash"></i> End Call
+        </button>
     </div>
 </div>
 
-<!-- Jitsi Meet External API -->
-<script src="https://meet.jit.si/external_api.js"></script>
-
+<!-- Vonage Video API Script -->
 <script>
-// Configuration
-const ROOM_ID = "{{ video_call.room_id|escapejs }}";
-const USER_NAME = "{{ request.user.get_full_name|escapejs }}" || "{{ request.user.username|escapejs }}";
-const OTHER_USER = "{{ other_user.get_full_name|escapejs }}";
-const IS_DOCTOR = "{{ request.user.user_type }}" === "doctor";
+// ===== VONAGE VIDEO API CONFIGURATION =====
+const VONAGE_API_KEY = "{{ vonage_api_key|escapejs }}";
+const VONAGE_SESSION_ID = "{{ vonage_session_id|escapejs }}";
+const VONAGE_TOKEN = "{{ vonage_token|escapejs }}";
+const VONAGE_ERROR = "{{ vonage_error|escapejs }}";
+
+// Call Information
 const CONVERSATION_ID = {{ conversation.id }};
 const CALL_ID = {{ video_call.id }};
 const CSRF_TOKEN = "{{ csrf_token }}";
+const USER_NAME = "{{ user_display_name|escapejs }}";
+const OTHER_USER = "{{ other_user.get_full_name|escapejs }}";
+const IS_DOCTOR = "{{ request.user.user_type }}" === "doctor";
 
-// Create a unique room name (must be alphanumeric with dashes)
-const ROOM_NAME = "HealthLink" + ROOM_ID.replace(/[^a-zA-Z0-9]/g, '');
-
-console.log('=== VIDEO CALL ===');
-console.log('Room:', ROOM_NAME);
-console.log('User:', USER_NAME);
-
-let api = null;
+// State variables
+let session = null;
+let publisher = null;
+let subscribers = {};
 let callStartTime = null;
 let callTimerInterval = null;
+let audioEnabled = true;
+let videoEnabled = true;
 
+console.log('=== VONAGE VIDEO CALL ===');
+console.log('API Key:', VONAGE_API_KEY ? 'Present' : 'MISSING');
+console.log('Session ID:', VONAGE_SESSION_ID ? 'Present' : 'MISSING');
+console.log('Token:', VONAGE_TOKEN ? 'Present' : 'MISSING');
+console.log('User:', USER_NAME);
+
+// Check for errors from backend
+if (VONAGE_ERROR) {
+    console.error('Vonage Error:', VONAGE_ERROR);
+    showError('Vonage setup failed: ' + VONAGE_ERROR);
+}
+
+// ===== CALL TIMER =====
 function startCallTimer() {
     callStartTime = new Date();
     if (callTimerInterval) clearInterval(callTimerInterval);
@@ -473,136 +521,223 @@ function updateCallStatus(status) {
     }
 }
 
-function startCall() {
-    try {
-        updateCallStatus('connecting');
-        
-        // Use standard Jitsi Meet (better mobile support)
-        const domain = 'meet.jit.si';
-        const options = {
-            roomName: ROOM_NAME,
-            parentNode: document.getElementById('jitsi-container'),
-            width: '100%',
-            height: '100%',
-            userInfo: {
-                displayName: IS_DOCTOR ? 'Dr. ' + USER_NAME : USER_NAME
-            },
-            configOverwrite: {
-                prejoinPageEnabled: false,
-                startWithAudioMuted: false,
-                startWithVideoMuted: true,
-                disableDeepLinking: true,
-                enableWelcomePage: false,
-                enableClosePage: false,
-                disableInviteFunctions: true,
-                hideConferenceSubject: true,
-                hideConferenceTimer: false,
-                subject: 'HealthLink Consultation',
-                enableNoisyMicDetection: true,
-                enableNoAudioDetection: true,
-                constraints: {
-                    video: {
-                        height: { ideal: 720, max: 720, min: 180 },
-                        width: { ideal: 1280, max: 1280, min: 320 },
-                        frameRate: { max: 30 }
-                    },
-                    audio: true
-                },
-                disableSimulcast: false,
-                enableLayerSuspension: true,
-                p2p: { enabled: true }
-            },
-            interfaceConfigOverwrite: {
-                SHOW_JITSI_WATERMARK: false,
-                SHOW_WATERMARK_FOR_GUESTS: false,
-                SHOW_BRAND_WATERMARK: false,
-                SHOW_POWERED_BY: false,
-                SHOW_PROMOTIONAL_CLOSE_PAGE: false,
-                DISABLE_JOIN_LEAVE_NOTIFICATIONS: false,
-                MOBILE_APP_PROMO: false,
-                TOOLBAR_ALWAYS_VISIBLE: false,
-                DISABLE_DOMINANT_SPEAKER_INDICATOR: false,
-                TOOLBAR_BUTTONS: [
-                    'microphone', 'camera', 'hangup',
-                    'fullscreen', 'chat', 'tileview',
-                    'toggle-camera', 'videoquality'
-                ],
-                SETTINGS_SECTIONS: ['devices', 'language'],
-                VIDEO_LAYOUT_FIT: 'both',
-                filmStripOnly: false,
-                VERTICAL_FILMSTRIP: true,
-                CLOSE_PAGE_GUEST_HINT: false,
-                DEFAULT_BACKGROUND: '#0f172a',
-                DEFAULT_LOCAL_DISPLAY_NAME: 'You',
-                DEFAULT_REMOTE_DISPLAY_NAME: OTHER_USER
-            }
-        };
-        
-        // Create Jitsi Meet instance
-        api = new JitsiMeetExternalAPI(domain, options);
-        
-        // Event handlers
-        api.addListener('videoConferenceJoined', (event) => {
-            console.log('Joined conference:', event);
-            document.getElementById('loadingOverlay').classList.add('hidden');
-            updateCallStatus('active');
-            startCallTimer();
-        });
-        
-        api.addListener('videoConferenceLeft', (event) => {
-            console.log('Left conference');
-            updateCallStatus('ended');
-            endCallAndRedirect();
-        });
-        
-        api.addListener('participantJoined', (event) => {
-            console.log('Participant joined:', event);
-            updateCallStatus('connected');
-        });
-        
-        api.addListener('participantLeft', (event) => {
-            console.log('Participant left:', event);
-        });
-        
-        api.addListener('readyToClose', () => {
-            console.log('Ready to close');
-            endCallAndRedirect();
-        });
-        
-        api.addListener('errorOccurred', (error) => {
-            console.log('Jitsi error:', error);
-            if (error.error && error.error.name === 'gum.permission_denied') {
-                showPermissionHelp();
-            }
-        });
-        
-        // Hide loading after a timeout in case event doesn't fire
-        setTimeout(() => {
-            document.getElementById('loadingOverlay').classList.add('hidden');
-            updateCallStatus('connected');
-        }, 8000);
-        
-    } catch (error) {
-        console.error('Error starting Jitsi:', error);
-        showError(error.message);
+// ===== VONAGE EVENT HANDLERS =====
+function handleSessionConnected(event) {
+    console.log('Session connected successfully');
+    updateCallStatus('connected');
+    
+    // Start publishing
+    publisher = OT.initPublisher('vonage-publisher', {
+        audioSource: true,
+        videoSource: true,
+        width: '100%',
+        height: '100%'
+    }, (error) => {
+        if (error) {
+            console.error('Publish error:', error);
+            showError('Could not access camera/microphone: ' + error.message);
+        } else {
+            console.log('Publisher ready');
+            session.publish(publisher, (error) => {
+                if (error) {
+                    console.error('Publishing error:', error);
+                    showError('Publishing error: ' + error.message);
+                } else {
+                    console.log('Published successfully');
+                    updateCallStatus('active');
+                    startCallTimer();
+                    document.getElementById('loadingOverlay').classList.add('hidden');
+                }
+            });
+        }
+    });
+}
+
+function handleStreamCreated(event) {
+    console.log('Participant joined');
+    const subscriberId = 'subscriber-' + event.stream.id;
+    
+    if (subscribers[subscriberId]) {
+        console.log('Already subscribed to stream:', subscriberId);
+        return;
+    }
+    
+    // Create container for subscriber
+    const container = document.createElement('div');
+    container.id = subscriberId;
+    container.className = 'video-stream';
+    document.getElementById('vonage-subscribers').appendChild(container);
+    
+    // Subscribe to stream
+    const subscriber = session.subscribe(event.stream, container, {
+        audioVolume: 100,
+        width: '100%',
+        height: '100%'
+    }, (error) => {
+        if (error) {
+            console.error('Subscription error:', error);
+        } else {
+            console.log('Subscribed to stream:', subscriberId);
+            subscribers[subscriberId] = subscriber;
+        }
+    });
+}
+
+function handleStreamDestroyed(event) {
+    console.log('Participant left');
+    const subscriberId = 'subscriber-' + event.stream.id;
+    
+    if (subscribers[subscriberId]) {
+        delete subscribers[subscriberId];
+        const container = document.getElementById(subscriberId);
+        if (container) {
+            container.remove();
+        }
     }
 }
 
-function showPermissionHelp() {
-    document.getElementById('permissionHelp').style.display = 'block';
+function handleSessionDisconnected(event) {
+    console.log('Session disconnected');
+    cleanup();
 }
 
-function retryPermission() {
-    window.location.reload();
+function handleError(event) {
+    console.error('Vonage error:', event.error.name, event.error.message);
+    showError('Video error: ' + event.error.message);
 }
 
+// ===== CONTROL HANDLERS =====
+document.getElementById('audioToggle').addEventListener('click', () => {
+    if (!publisher) return;
+    
+    audioEnabled = !audioEnabled;
+    publisher.publishAudio(audioEnabled);
+    
+    const btn = document.getElementById('audioToggle');
+    btn.classList.toggle('disabled', !audioEnabled);
+    btn.style.opacity = audioEnabled ? '1' : '0.5';
+    console.log('Audio:', audioEnabled ? 'enabled' : 'disabled');
+});
+
+document.getElementById('videoToggle').addEventListener('click', () => {
+    if (!publisher) return;
+    
+    videoEnabled = !videoEnabled;
+    publisher.publishVideo(videoEnabled);
+    
+    const btn = document.getElementById('videoToggle');
+    btn.classList.toggle('disabled', !videoEnabled);
+    btn.style.opacity = videoEnabled ? '1' : '0.5';
+    console.log('Video:', videoEnabled ? 'enabled' : 'disabled');
+});
+
+document.getElementById('endCallBtn').addEventListener('click', () => {
+    console.log('End call button clicked');
+    endCallAndRedirect();
+});
+
+// ===== INITIALIZATION =====
+function initializeVonage() {
+    console.log('Initializing Vonage...');
+    
+    if (!VONAGE_API_KEY || !VONAGE_SESSION_ID || !VONAGE_TOKEN) {
+        showError('Vonage credentials missing. Please try again.');
+        return;
+    }
+    
+    try {
+        // Initialize session
+        session = OT.initSession(VONAGE_API_KEY, VONAGE_SESSION_ID);
+        
+        // Set up event listeners
+        session.on('sessionConnected', handleSessionConnected);
+        session.on('streamCreated', handleStreamCreated);
+        session.on('streamDestroyed', handleStreamDestroyed);
+        session.on('sessionDisconnected', handleSessionDisconnected);
+        session.on('error', handleError);
+        
+        // Connect to session
+        session.connect(VONAGE_TOKEN, (error) => {
+            if (error) {
+                console.error('Connection error:', error);
+                showError('Connection failed: ' + error.message);
+            } else {
+                console.log('Connected to session');
+                updateCallStatus('connecting');
+            }
+        });
+        
+        // Hide loading after timeout (in case events don't fire)
+        setTimeout(() => {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }, 10000);
+        
+    } catch (error) {
+        console.error('Vonage initialization error:', error);
+        showError('Initialization error: ' + error.message);
+    }
+}
+
+// ===== CALL ENDING =====
+async function endCallAndRedirect() {
+    console.log('Ending call...');
+    
+    // Stop timer
+    if (callTimerInterval) {
+        clearInterval(callTimerInterval);
+    }
+    
+    // Update call status on server
+    try {
+        const response = await fetch(`/messaging/call/end/${CALL_ID}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+            credentials: 'same-origin'
+        });
+        console.log('Call end response:', response.status);
+    } catch (e) {
+        console.error('Error ending call on server:', e);
+    }
+    
+    // Clean up
+    cleanup();
+    
+    // Redirect to conversation
+    setTimeout(() => {
+        window.location.href = `/messaging/conversation/${CONVERSATION_ID}/`;
+    }, 1500);
+}
+
+function cleanup() {
+    console.log('Cleaning up...');
+    
+    // Unpublish
+    if (publisher) {
+        session.unpublish(publisher);
+    }
+    
+    // Unsubscribe from all streams
+    Object.values(subscribers).forEach(subscriber => {
+        session.unsubscribe(subscriber);
+    });
+    subscribers = {};
+    
+    // Disconnect
+    if (session) {
+        session.disconnect();
+    }
+    
+    console.log('Cleanup complete');
+}
+
+// ===== ERROR DISPLAY =====
 function showError(message) {
     const overlay = document.getElementById('loadingOverlay');
     overlay.classList.add('error-overlay');
     overlay.innerHTML = `
         <div class="loading-content">
             <i class="fas fa-exclamation-circle"></i>
-            <h3>Could not start video consultation</h3>
+            <h3>Video Consultation Error</h3>
             <p style="color: rgba(255,255,255,0.7); margin: 15px 0;">${message}</p>
             <a href="/messaging/conversation/${CONVERSATION_ID}/" 
                style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; border-radius: 8px; text-decoration: none; margin-top: 20px; font-weight: 600;">
@@ -612,39 +747,12 @@ function showError(message) {
     `;
 }
 
-async function endCallAndRedirect() {
-    // Update call status on server
-    if (callTimerInterval) clearInterval(callTimerInterval);
-    
-    try {
-        await fetch(`/messaging/call/end/${CALL_ID}/`, {
-            method: 'POST',
-            headers: { 'X-CSRFToken': CSRF_TOKEN }
-        });
-    } catch (e) {
-        console.error('Error ending call:', e);
-    }
-    
-    // Dispose Jitsi
-    if (api) {
-        api.dispose();
-    }
-    
-    // Redirect back to conversation
-    setTimeout(() => {
-        window.location.href = `/messaging/conversation/${CONVERSATION_ID}/`;
-    }, 2000);
-}
+// ===== PAGE LIFECYCLE =====
+document.addEventListener('DOMContentLoaded', initializeVonage);
 
-// Handle page unload
 window.addEventListener('beforeunload', () => {
-    if (api) {
-        api.dispose();
-    }
+    cleanup();
 });
-
-// Start the call when page loads
-document.addEventListener('DOMContentLoaded', startCall);
 </script>
 </body>
 </html>
