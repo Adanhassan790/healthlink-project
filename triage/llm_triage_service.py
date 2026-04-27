@@ -60,6 +60,13 @@ class LLMTriageService:
 
     def system_prompt(self):
         """Medical triage system prompt with detailed instructions"""
+        # Count turns to help Groq know when to make recommendation
+        turn_count = len([m for m in self.conversation_history if m['role'] == 'user'])
+        
+        turn_instruction = ""
+        if turn_count >= 3:
+            turn_instruction = "\n\n*** IMPORTANT: This is turn #%d of the conversation. You should NOW make a recommendation. Set ready_for_recommendation to TRUE and provide a recommendation with primary_specialty. ***" % (turn_count + 1)
+        
         return """You are a professional medical triage AI assistant.
 
 CRITICAL INSTRUCTIONS - YOU MUST FOLLOW THESE EXACTLY:
@@ -87,24 +94,24 @@ YOUR TRIAGE PROCESS:
 
 CRITICAL RULES:
 - NEVER diagnose - only triage to specialty
-- ALWAYS ask 1-2 clarifying questions
+- ALWAYS ask 1-2 clarifying questions (unless making recommendation)
 - Detect EMERGENCIES: chest pain, difficulty breathing, loss of consciousness, severe bleeding, severe trauma
 - Be empathetic and professional
 - After gathering 3-4 key symptoms + severity info, provide recommendation
+- Turn 1-2: Ask clarifying questions, gather symptoms
+- Turn 3+: MAKE RECOMMENDATION with primary_specialty and reasoning
 
 SPECIALTY MAPPINGS:
-- Chest pain, heart issues → Cardiology
-- Headache, dizziness, neurological → Neurology  
-- Cough, breathing issues → Pulmonology
-- Stomach, digestive issues → Gastroenterology
-- Rash, skin issues → Dermatology
-- Joint, bone pain → Orthopedics
-- Mental health, stress, depression → Psychiatry
-- ENT issues → ENT
-- Eye issues → Ophthalmology
-- Default → General Medicine
-
-REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
+- Chest pain, heart issues -> Cardiology
+- Headache, dizziness, neurological -> Neurology  
+- Cough, breathing issues -> Pulmonology
+- Stomach, digestive issues -> Gastroenterology
+- Rash, skin issues -> Dermatology
+- Joint, bone pain -> Orthopedics
+- Mental health, stress, depression -> Psychiatry
+- ENT issues -> ENT
+- Eye issues -> Ophthalmology
+- Default -> General Medicine""" + turn_instruction
 
     def process_patient_message(self, user_message: str) -> dict:
         """
