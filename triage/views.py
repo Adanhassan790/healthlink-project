@@ -298,11 +298,11 @@ def triage_chat_api(request):
             api_available = False
             if 'llm_triage_service' in request.session:
                 service_data = request.session['llm_triage_service']
-                llm_service = LLMTriageService(use_groq=False)  # Initialize without API first
+                llm_service = LLMTriageService(use_groq=True)  # Always try Groq
                 llm_service.conversation_history = service_data.get('conversation_history', [])
                 llm_service.symptoms_identified = service_data.get('symptoms_identified', [])
                 llm_service.state = service_data.get('state', 'greeting')
-                api_available = service_data.get('api_available', False)
+                api_available = llm_service.api_available
             else:
                 llm_service = LLMTriageService(use_groq=True)  # Try with API
                 api_available = llm_service.api_available
