@@ -202,7 +202,7 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
         More reliable for board demo than broken API calls.
         Intelligently tracks conversation turns and adapts questions.
         """
-        # Count conversation turns
+        # Count conversation turns (how many times user has responded)
         turn_count = len([m for m in self.conversation_history if m['role'] == 'user'])
         
         # Extract symptoms from user message
@@ -218,36 +218,67 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
             self.state = 'emergency'
             response_text = "🚨 EMERGENCY DETECTED. Please seek immediate medical attention or call emergency services. You should visit the Emergency Room right now."
         
-        # Decision logic based on number of symptoms and conversation turns
+        # Decision logic based on symptoms AND conversation turns
         elif len(self.symptoms_identified) == 0:
+            # No symptoms detected yet
             response_text = "I didn't quite catch that. Could you please describe your main symptom or health concern? For example: 'I have a cough' or 'I have chest pain'."
         
-        elif len(self.symptoms_identified) == 1:
-            # First symptom - ask about it
+        elif len(self.symptoms_identified) >= 1 and turn_count == 1:
+            # First user response - ask for details about the symptom
             symptom = self.symptoms_identified[0]
-            response_text = f"I see you have {symptom}. To help better:\n- How long have you had this {symptom.lower()}? (days, weeks)\n- How severe is it? (mild, moderate, severe)\n- Anything else you've noticed?"
+            response_text = f"I see you have {symptom}. To help better:\n- How long have you had this? (days, weeks)\n- How severe is it? (mild, moderate, severe)\n- Any other symptoms?"
         
-        elif len(self.symptoms_identified) == 2 and turn_count <= 2:
-            # Two symptoms, early in conversation - ask about duration and other symptoms
-            response_text = f"Good, so you have {', '.join(self.symptoms_identified[:2])}. Can you tell me:\n- When did this start? (recent or ongoing)\n- Any other symptoms like fever, fatigue, or difficulty breathing?\n- How is it affecting your daily activities?"
-        
-        elif len(self.symptoms_identified) >= 2 and turn_count >= 2 and len(self.symptoms_identified) < 4:
-            # Multiple symptoms, conversation progressing - check for more info
-            specialty, _ = self._recommend_specialty_from_symptoms()
+        elif len(self.symptoms_identified) >= 1 and turn_count >= 2 and severity in ['medium', 'high']:
+            # User answered follow-up questions AND reported severity - ready to recommend
+            specialty, urgency_level = self._recommend_specialty_from_symptoms()
             
-            # If we have a clear specialty match, can recommend
-            if specialty and specialty != 'General Medicine':
-                self.state = 'recommendation'
-                self.conversation_history.append({
-                    "role": "assistant",
-                    "content": f"Recommending {specialty}"
-                })
-                urgency = self._assess_urgency(self.symptoms_identified, specialty)
-                
-                return {
-                    "thinking": f"Based on symptoms: {', '.join(self.symptoms_identified)}",
-                    "extracted_symptoms": self.symptoms_identified,
-                    "severity_assessment": severity,
+            self.state = 'recommendation'
+            self.conversation_history.append({
+                "role": "assistant",
+                "content": f"Recommending {specialty}"
+            })
+            
+            return {
+                "thinking": f"Based on {len(self.symptoms_identified)} symptom(s) with {severity} severity",
+                "extracted_symptoms": self.symptoms_identified,
+                "severity_assessment": severity,
+                "emergency_alert": emergency,
+                "next_question": f"Based on your {severity.lower()} {self.symptoms_identified[0].lower()} that's lasted {turn_count} days, I recommend seeing a {specialty} specialist.",
+                "ready_for_recommendation": True,
+                "recommendation": {
+                    "primary_specialty": specialty,
+                    "urgency": urgency_level,
+                    "reasoning": f"Your {specialty.lower()} symptoms of {', '.join(self.symptoms_identified)} warrant specialist evaluation."
+                }
+            }
+        
+        elif len(self.symptoms_identified) >= 2 and turn_count >= 2:
+            # Multiple symptoms gathered - make recommendation
+            specialty, urgency_level = self._recommend_specialty_from_symptoms()
+            
+            self.state = 'recommendation'
+            self.conversation_history.append({
+                "role": "assistant",
+                "content": f"Recommending {specialty}"
+            })
+            
+            return {
+                "thinking": f"Based on symptoms: {', '.join(self.symptoms_identified)}",
+                "extracted_symptoms": self.symptoms_identified,
+                "severity_assessment": severity,
+                "emergency_alert": emergency,
+                "next_question": f"Based on your symptoms of {', '.join(self.symptoms_identified)}, I recommend seeing a {specialty} specialist.",
+                "ready_for_recommendation": True,
+                "recommendation": {
+                    "primary_specialty": specialty,
+                    "urgency": urgency_level,
+                    "reasoning": f"Your symptoms match {specialty} scope of practice."
+                }
+            }
+        
+        else:
+            # Keep gathering more details
+            response_text = f"Thank you for that information. You mentioned: {', '.join(self.symptoms_identified)}.\n- Do you have any fever, chills, or night sweats?\n- Any pain, swelling, or difficulty with specific activities?\n- How is this affecting your daily life?"
                     "emergency_alert": emergency,
                     "next_question": f"Based on your symptoms of {', '.join(self.symptoms_identified)}, I recommend seeing a {specialty} specialist. They can properly diagnose and treat your condition.",
                     "ready_for_recommendation": True,
