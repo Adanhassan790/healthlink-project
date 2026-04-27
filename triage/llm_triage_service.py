@@ -279,45 +279,8 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
         else:
             # Keep gathering more details
             response_text = f"Thank you for that information. You mentioned: {', '.join(self.symptoms_identified)}.\n- Do you have any fever, chills, or night sweats?\n- Any pain, swelling, or difficulty with specific activities?\n- How is this affecting your daily life?"
-                    "emergency_alert": emergency,
-                    "next_question": f"Based on your symptoms of {', '.join(self.symptoms_identified)}, I recommend seeing a {specialty} specialist. They can properly diagnose and treat your condition.",
-                    "ready_for_recommendation": True,
-                    "recommendation": {
-                        "primary_specialty": specialty,
-                        "urgency": urgency,
-                        "reasoning": f"Your {specialty.lower()} symptoms match: {', '.join(self.symptoms_identified)}"
-                    }
-                }
-            else:
-                # Not enough clarity yet - ask more
-                response_text = f"Thank you. You mentioned: {', '.join(self.symptoms_identified)}.\n- Do you have any fever, chills, or night sweats?\n- Any pain, swelling, or difficulty with specific activities?\n- Have you recently been sick or exposed to illness?"
         
-        else:
-            # Enough symptoms and information - make recommendation
-            specialty, urgency = self._recommend_specialty_from_symptoms()
-            self.state = 'recommendation'
-            self.conversation_history.append({
-                "role": "assistant",
-                "content": f"Recommending {specialty}"
-            })
-            return {
-                "thinking": f"Based on symptoms: {', '.join(self.symptoms_identified)}",
-                "extracted_symptoms": self.symptoms_identified,
-                "severity_assessment": severity,
-                "emergency_alert": emergency,
-                "next_question": f"Based on your symptoms, I recommend seeing a {specialty} specialist.",
-                "ready_for_recommendation": True,
-                "recommendation": {
-                    "primary_specialty": specialty,
-                    "urgency": urgency,
-                    "reasoning": f"Your symptoms of {', '.join(self.symptoms_identified[:3])} suggest {specialty} expertise is needed."
-                }
-            }
-
         # Update state
-        if self.state == 'gathering':
-            self.state = 'gathering'
-        
         self.conversation_history.append({
             "role": "assistant",
             "content": response_text
