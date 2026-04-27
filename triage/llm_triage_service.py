@@ -234,8 +234,14 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
             symptom = self.symptoms_identified[0]
             response_text = f"I see you have {symptom}. To help better:\n- How long have you had this? (days, weeks)\n- How severe is it? (mild, moderate, severe)\n- Any other symptoms?"
         
-        elif len(self.symptoms_identified) >= 1 and turn_count >= 2 and severity in ['medium', 'high']:
-            # User answered follow-up questions AND reported severity - ready to recommend
+        elif len(self.symptoms_identified) >= 1 and turn_count == 2:
+            # Second response - ask about additional symptoms and impact
+            response_text = f"Thank you for that information. You mentioned: {', '.join(self.symptoms_identified)}.\n- Do you have any fever, chills, or night sweats?\n- Any pain, swelling, or difficulty with specific activities?\n- How is this affecting your daily life?"
+        
+        # IMPORTANT: After turn 3+, make recommendation even if more symptoms could be gathered
+        # User has had 3+ exchanges, we likely have enough info
+        elif turn_count >= 3 and len(self.symptoms_identified) >= 1:
+            # Sufficient conversation and symptoms - ready to recommend
             specialty, urgency_level = self._recommend_specialty_from_symptoms()
             
             self.state = 'recommendation'
@@ -248,21 +254,21 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
             duration_text = self.symptom_duration if self.symptom_duration else "recently"
             
             return {
-                "thinking": f"Based on {len(self.symptoms_identified)} symptom(s) with {severity} severity lasting {duration_text}",
+                "thinking": f"After {turn_count} exchanges with {len(self.symptoms_identified)} symptom(s), ready to recommend",
                 "extracted_symptoms": self.symptoms_identified,
                 "severity_assessment": severity,
                 "emergency_alert": emergency,
-                "next_question": f"Based on your {severity.lower()} {self.symptoms_identified[0].lower()} that's lasted {duration_text}, I recommend seeing a {specialty} specialist.",
+                "next_question": f"Based on your symptoms of {', '.join(self.symptoms_identified)} lasting {duration_text}, I recommend seeing a {specialty} specialist for proper evaluation and care.",
                 "ready_for_recommendation": True,
                 "recommendation": {
                     "primary_specialty": specialty,
                     "urgency": urgency_level,
-                    "reasoning": f"Your {specialty.lower()} symptoms of {', '.join(self.symptoms_identified)} warrant specialist evaluation."
+                    "reasoning": f"Your combination of symptoms warrant evaluation by a {specialty} specialist who can provide appropriate care."
                 }
             }
         
-        elif len(self.symptoms_identified) >= 2 and turn_count >= 2:
-            # Multiple symptoms gathered - make recommendation
+        elif len(self.symptoms_identified) >= 2 and turn_count >= 2 and severity in ['medium', 'high']:
+            # Multiple symptoms with reported severity - recommend now
             specialty, urgency_level = self._recommend_specialty_from_symptoms()
             
             self.state = 'recommendation'
@@ -275,11 +281,11 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
             duration_text = self.symptom_duration if self.symptom_duration else "for some time"
             
             return {
-                "thinking": f"Based on symptoms: {', '.join(self.symptoms_identified)}",
+                "thinking": f"Based on {len(self.symptoms_identified)} symptom(s) with {severity} severity lasting {duration_text}",
                 "extracted_symptoms": self.symptoms_identified,
                 "severity_assessment": severity,
                 "emergency_alert": emergency,
-                "next_question": f"Based on your symptoms of {', '.join(self.symptoms_identified)} lasting {duration_text}, I recommend seeing a {specialty} specialist.",
+                "next_question": f"Based on your {severity.lower()} symptoms of {', '.join(self.symptoms_identified)} lasting {duration_text}, I recommend seeing a {specialty} specialist.",
                 "ready_for_recommendation": True,
                 "recommendation": {
                     "primary_specialty": specialty,
@@ -289,7 +295,7 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
             }
         
         else:
-            # Keep gathering more details
+            # Keep gathering more details (only for turns 2 to before turn 3)
             response_text = f"Thank you for that information. You mentioned: {', '.join(self.symptoms_identified)}.\n- Do you have any fever, chills, or night sweats?\n- Any pain, swelling, or difficulty with specific activities?\n- How is this affecting your daily life?"
         
         # Update state
@@ -299,7 +305,7 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
         })
 
         return {
-            "thinking": f"Turn {turn_count}, Found {len(self.symptoms_identified)} symptoms",
+            "thinking": f"Turn {turn_count}, Found {len(self.symptoms_identified)} symptoms, gathering details",
             "extracted_symptoms": self.symptoms_identified,
             "severity_assessment": severity,
             "emergency_alert": emergency,
@@ -560,15 +566,16 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
             'Shortness of Breath': ['shortness of breath', 'breathing problem', 'can\'t breathe', 'difficulty breathing'],
             'Dizziness': ['dizziness', 'dizzy', 'lightheaded', 'vertigo', 'spinning'],
             'Fatigue': ['fatigue', 'tired', 'exhausted', 'exhaustion', 'weak', 'weakness'],
+            'Excessive Sweating': ['excess sweat', 'excessive sweating', 'sweating a lot', 'heavy sweating', 'heavy sweat'],
             'Sore Throat': ['sore throat', 'throat pain', 'throat hurt', 'pharyngitis'],
             'Runny Nose': ['runny nose', 'nasal discharge', 'nose running'],
-            'Rash': ['rash', 'rashes', 'skin rash', 'itchy rash'],
+            'Rash': ['rash', 'rashes', 'skin rash', 'itchy rash', 'body itching', 'itching all over', 'skin itching'],
             'Joint Pain': ['joint pain', 'joint ache', 'joint hurt', 'arthritis'],
             'Back Pain': ['back pain', 'back ache', 'spinal pain', 'lumbar pain'],
             'Abdominal Pain': ['abdominal pain', 'stomach pain', 'belly pain', 'tummy pain', 'stomach ache'],
             'Anxiety': ['anxiety', 'anxious', 'worried', 'nervousness', 'nervous'],
             'Depression': ['depression', 'depressed', 'sad', 'hopeless'],
-            'Insomnia': ['insomnia', 'can\'t sleep', 'sleep problem', 'sleeping problem'],
+            'Insomnia': ['insomnia', 'can\'t sleep', 'sleep problem', 'sleeping problem', 'hard time sleep', 'difficulty sleep', 'trouble sleep'],
             'Palpitations': ['palpitations', 'heart racing', 'heart pounding', 'rapid heartbeat'],
             'Rapid Heartbeat': ['rapid heartbeat', 'fast heartbeat', 'fast heart', 'tachycardia'],
             'Muscle Pain': ['muscle pain', 'muscle ache', 'myalgia', 'muscle hurt'],
