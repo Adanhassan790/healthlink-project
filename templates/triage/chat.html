@@ -343,15 +343,64 @@
         actionsDiv.className = 'message ai-message';
         actionsDiv.style.cssText = 'display: flex; gap: 10px; flex-wrap: wrap; padding: 1rem;';
         actionsDiv.innerHTML = `
-            <a href="{% url 'appointments:doctor_list' %}" class="btn" style="background: #10b981; color: white; padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none;">
-                🏥 Find Specialists
+            <button onclick="bookAppointmentNow()" class="btn" style="background: #10b981; color: white; padding: 0.5rem 1rem; border-radius: 8px; border: none; cursor: pointer;">
+                📅 Book Appointment
+            </button>
+            <a href="{% url 'appointments:doctor_list' %}" class="btn" style="background: #3b82f6; color: white; padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none;">
+                🏥 Browse All Doctors
             </a>
             <button onclick="resetChat()" class="btn" style="background: #6b7280; color: white; padding: 0.5rem 1rem; border-radius: 8px; border: none; cursor: pointer;">
-                🔄 Start New Assessment
+                🔄 New Assessment
             </button>
         `;
         messagesContainer.appendChild(actionsDiv);
         scrollToBottom();
+    }
+    
+    async function bookAppointmentNow() {
+        // Get the recommendation from the last AI message
+        const chatMessages = document.querySelectorAll('.ai-message');
+        let specialty = 'General Medicine';
+        
+        // Try to extract specialty from last message
+        if (chatMessages.length > 0) {
+            const lastMessage = chatMessages[chatMessages.length - 2];  // -2 because -1 is action buttons
+            if (lastMessage) {
+                const text = lastMessage.textContent.toLowerCase();
+                if (text.includes('orthopedic')) specialty = 'Orthopedics';
+                else if (text.includes('cardio')) specialty = 'Cardiology';
+                else if (text.includes('neuro')) specialty = 'Neurology';
+                else if (text.includes('dermat')) specialty = 'Dermatology';
+                else if (text.includes('gastro')) specialty = 'Gastroenterology';
+                else if (text.includes('pulmo')) specialty = 'Pulmonology';
+                else if (text.includes('psychiatry')) specialty = 'Psychiatry';
+                else if (text.includes('ent')) specialty = 'ENT';
+            }
+        }
+        
+        try {
+            const response = await fetch('{% url "triage:book_appointment_from_chat" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({ specialty: specialty })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                window.location.href = data.redirect;
+            } else {
+                // Show doctor selection page
+                window.location.href = data.redirect;
+            }
+        } catch (error) {
+            console.error('Booking error:', error);
+            alert('Error booking appointment. Please try selecting a doctor manually.');
+            window.location.href = '{% url "appointments:doctor_list" %}';
+        }
     }
     
     async function resetChat() {

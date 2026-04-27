@@ -390,6 +390,55 @@ def triage_chat_api(request):
     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
+@login_required
+@patient_required
+def book_appointment_from_chat(request):
+    """
+    API endpoint to book an appointment after triage recommendation.
+    Called when user responds 'yes' to booking suggestion.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            specialty = data.get('specialty', 'General Medicine').strip()
+            
+            if not specialty:
+                return JsonResponse({'error': 'Specialty required'}, status=400)
+            
+            # Find a doctor with this specialty
+            from appointments.models import DoctorProfile
+            
+            doctor_profile = DoctorProfile.objects.filter(
+                specialization__icontains=specialty
+            ).select_related('user').first()
+            
+            if not doctor_profile:
+                # No doctors with exact specialty, return list to choose from
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Please select a specific doctor',
+                    'redirect': f"{request.build_absolute_uri('/appointments/doctors/')}?specialty={specialty}"
+                })
+            
+            # Redirect to booking form for the selected doctor
+            return JsonResponse({
+                'success': True,
+                'message': 'Redirecting to appointment booking...',
+                'redirect': request.build_absolute_uri(f'/appointments/book/{doctor_profile.user_id}/')
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            logger.error(f"Appointment booking error: {e}", exc_info=True)
+            return JsonResponse({
+                'error': str(e),
+                'message': 'Error booking appointment. Please try again.'
+            }, status=500)
+    
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+
 def fallback_prediction(symptoms):
     """Rule-based fallback when ML fails"""
     symptom_names = [s.name.lower() for s in symptoms]
