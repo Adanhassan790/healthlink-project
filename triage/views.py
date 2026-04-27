@@ -164,90 +164,11 @@ def ensure_default_symptoms():
 
 @patient_required
 def triage(request):
-    """Main triage page - for patients only"""
+    """Main triage page - now redirects straight to chat (no symptoms form)"""
     ensure_default_symptoms()
     
-    if request.method == 'POST':
-        form = TriageForm(request.POST)
-        
-        print(f"DEBUG: Form is valid: {form.is_valid()}")
-        if not form.is_valid():
-            print(f"DEBUG: Form errors: {form.errors}")
-            return render(request, 'triage/start.html', {
-                'form': form,
-                'error': 'Please correct the errors below.'
-            })
-        
-        symptoms = form.cleaned_data['symptoms']
-        additional_notes = form.cleaned_data['additional_notes']
-        
-        print(f"DEBUG: Selected {len(symptoms)} symptoms")
-        print(f"DEBUG: Symptoms: {[s.name for s in symptoms]}")
-        
-        symptoms_text = ' '.join([symptom.name for symptom in symptoms])
-        if additional_notes:
-            symptoms_text += ' ' + additional_notes
-        
-        print(f"DEBUG: Symptoms text for ML: {symptoms_text}")
-        
-        try:
-            from .ml_service import AdvancedSymptomTriageModel
-            ml_model = AdvancedSymptomTriageModel()
-            result = ml_model.predict_with_explanation(symptoms_text)
-            predicted_specialty = result['primary_specialty']
-            confidence = result['confidence']
-            explanation = result['explanation']
-            alternatives = result['alternative_specialties']
-            print(f"DEBUG: ML prediction: {predicted_specialty} ({confidence:.1%})")
-        except Exception as e:
-            print(f"ML Model Error: {e}")
-            predicted_specialty, confidence = fallback_prediction(symptoms)
-            explanation = f"Based on symptoms: {', '.join([s.name for s in symptoms])}"
-            alternatives = []
-            print(f"DEBUG: Fallback prediction: {predicted_specialty} ({confidence:.1%})")
-        
-        if request.user.is_authenticated:
-            triage_session = TriageSession.objects.create(
-                user=request.user,
-                predicted_specialty=predicted_specialty,
-                confidence_score=confidence,
-                additional_notes=additional_notes
-            )
-            triage_session.symptoms.set(symptoms)
-        else:
-            triage_session = TriageSession.objects.create(
-                predicted_specialty=predicted_specialty,
-                confidence_score=confidence,
-                additional_notes=additional_notes
-            )
-            triage_session.symptoms.set(symptoms)
-        
-        print(f"DEBUG: Created triage session ID: {triage_session.id}")
-        
-        # ✅ FINAL COMBINED CONTEXT WITH session_id ADDED
-        return render(request, 'triage/results.html', {
-            'predicted_specialty': predicted_specialty,
-            'confidence': round(confidence * 100, 1),
-            'symptoms': symptoms,
-            'triage_session': triage_session,
-            'explanation': explanation,
-            'alternatives': alternatives,
-            'session_id': triage_session.id if hasattr(triage_session, 'id') else None
-        })
-    
-    else:
-        form = TriageForm()
-        
-        print(f"DEBUG: Form symptoms queryset count: {form.fields['symptoms'].queryset.count()}")
-        print(f"DEBUG: Database symptom count: {Symptom.objects.count()}")
-        
-        all_symptoms = Symptom.objects.all()
-        print(f"DEBUG: All symptoms in DB: {[s.name for s in all_symptoms[:5]]}...")
-        
-        return render(request, 'triage/start.html', {
-            'form': form,
-            'all_symptoms': all_symptoms
-        })
+    # Skip the symptoms selection form entirely - go straight to chat
+    return redirect('triage:triage_chat')
 
 
 @login_required
