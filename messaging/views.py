@@ -415,35 +415,52 @@ def video_room(request, room_id):
     logger.info(f"Is caller: {is_caller}")
     
     # Generate Vonage token for this user
+    vonage_error = None
+    api_key = None
+    token = None
+    
     try:
+        # Check if Vonage is configured
+        api_key = get_api_key()
+        logger.info(f"Vonage API Key found: {api_key[:10] if api_key else 'MISSING'}...")
+        
+        # Create session if needed
         if not video_call.vonage_session_id:
+            logger.info("Creating new Vonage session...")
             video_call.vonage_session_id = create_session()
             video_call.save()
+            logger.info(f"Session created: {video_call.vonage_session_id}")
         
         # Generate token for this user
+        logger.info("Generating Vonage token...")
         user_id = f"{request.user.id}_{request.user.username}"
         token = generate_token(video_call.vonage_session_id, user_id=user_id)
-        api_key = get_api_key()
+        logger.info(f"Token generated successfully")
         
-        context = {
-            'video_call': video_call,
-            'conversation': conversation,
-            'other_user': other_user,
-            'is_caller': is_caller,
-            'vonage_api_key': api_key,
-            'vonage_session_id': video_call.vonage_session_id,
-            'vonage_token': token,
-            'user_display_name': request.user.get_full_name() or request.user.username
-        }
+    except ImportError as e:
+        error_msg = f"OpenTok library not installed: {str(e)}. Please install opentok package."
+        logger.error(error_msg)
+        vonage_error = error_msg
+    except ValueError as e:
+        error_msg = f"Vonage not configured: {str(e)}"
+        logger.error(error_msg)
+        vonage_error = error_msg
     except Exception as e:
-        logger.error(f"Error with Vonage setup: {str(e)}")
-        context = {
-            'video_call': video_call,
-            'conversation': conversation,
-            'other_user': other_user,
-            'is_caller': is_caller,
-            'vonage_error': str(e)
-        }
+        error_msg = f"Error with Vonage: {str(e)}"
+        logger.error(error_msg)
+        vonage_error = error_msg
+    
+    context = {
+        'video_call': video_call,
+        'conversation': conversation,
+        'other_user': other_user,
+        'is_caller': is_caller,
+        'vonage_api_key': api_key or '',
+        'vonage_session_id': video_call.vonage_session_id or '',
+        'vonage_token': token or '',
+        'vonage_error': vonage_error or '',
+        'user_display_name': request.user.get_full_name() or request.user.username
+    }
     
     return render(request, 'messaging/video_room.html', context)
 
