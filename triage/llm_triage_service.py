@@ -210,6 +210,13 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
             # Parse JSON response
             analysis = self._parse_json_response(ai_message)
 
+            # Check if this is a mental health crisis (CRITICAL CHECK)
+            # Check both the user message AND the AI analysis for crisis indicators
+            if self._detect_mental_health_crisis(user_message) or self._detect_mental_health_crisis_in_analysis(analysis):
+                logger.critical(f"🚨 MENTAL HEALTH CRISIS DETECTED IN GROQ RESPONSE")
+                analysis['is_mental_health_crisis'] = True
+                analysis['crisis_resources'] = self._get_crisis_resources()
+
             # Add to history
             self.conversation_history.append({
                 "role": "assistant",
@@ -523,35 +530,48 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
     def _detect_mental_health_crisis(self, text: str) -> bool:
         """Specifically detect mental health crisis situations"""
         crisis_keywords = [
-            'suicidal', 'suicide', 'kill myself', 'kill me', 'kill myself', 'harm myself', 'self harm',
-            'want to die', 'end my life', 'end it all', 'hurt myself', 'give up',
+            'suicidal', 'suicide', 'kill myself', 'kill me', 'harming myself', 'harm myself', 'self harm',
+            'want to die', 'end my life', 'end it all', 'hurting myself', 'hurt myself', 'give up',
             'no point', 'worthless', 'hopeless', 'can\'t go on', 'end it',
             'cutting myself', 'cut myself', 'cut my',
             'hang myself', 'overdose', 'take my life', 'life is not worth',
             'nothing to live for', 'better off dead', 'don\'t want to live',
             'end my suffering', 'take my own life', 'take a lethal',
-            'feel like dying', 'i am going to', 'i will',
-            'go on', 'can\'t continue', 'going to end it'
+            'feel like dying', 'i am going to', 'going to end it',
+            'harming me', 'hurting me', 'think of harm', 'think of hurt'
         ]
         
         text_lower = text.lower()
         
-        # Check for keywords - but be careful not to flag phrases like "I want to harm others"
-        # We want to flag self-harm and suicidal ideation, not general harm references
-        self_harm_keywords = [
-            'harm myself', 'hurt myself', 'harm me', 'hurt me', 'cut myself', 'cut my',
-            'harm my', 'hurt my', 'hurt myself'
-        ]
-        
+        # Check for crisis keywords
         for keyword in crisis_keywords:
             if keyword in text_lower:
                 return True
-        
-        # Check self-harm keywords - these are more likely to be false positives
-        for keyword in self_harm_keywords:
-            if keyword in text_lower:
-                return True
                 
+        return False
+    
+    def _detect_mental_health_crisis_in_analysis(self, analysis: dict) -> bool:
+        """
+        Check if the AI analysis indicates a mental health crisis.
+        Looks at extracted_symptoms and the next_question for crisis indicators.
+        """
+        # Check extracted symptoms for mental health crisis indicators
+        symptoms = analysis.get('extracted_symptoms', [])
+        for symptom in symptoms:
+            if any(keyword in symptom.lower() for keyword in ['suicidal', 'ideation', 'self harm', 'self-harm']):
+                return True
+        
+        # Check the next question for crisis language patterns
+        next_q = analysis.get('next_question', '').lower()
+        crisis_patterns = [
+            'suicidal', 'harming yourself', 'harm yourself', 'crisis', 'emergency',
+            'plan to harm', 'think about harm'
+        ]
+        
+        for pattern in crisis_patterns:
+            if pattern in next_q:
+                return True
+        
         return False
 
 
