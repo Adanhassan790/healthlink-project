@@ -6,7 +6,6 @@ Handles session creation and token generation for Vonage video calls
 import os
 import logging
 from datetime import datetime, timedelta
-import opentok
 
 logger = logging.getLogger(__name__)
 
@@ -14,11 +13,20 @@ logger = logging.getLogger(__name__)
 VONAGE_API_KEY = os.getenv('VONAGE_API_KEY')
 VONAGE_API_SECRET = os.getenv('VONAGE_API_SECRET')
 
-if VONAGE_API_KEY and VONAGE_API_SECRET:
-    ot = opentok.OpenTok(VONAGE_API_KEY, VONAGE_API_SECRET)
-else:
-    ot = None
-    logger.warning("Vonage credentials not configured. Video calls will not work.")
+ot = None
+
+# Try to import and initialize opentok
+try:
+    import opentok
+    if VONAGE_API_KEY and VONAGE_API_SECRET:
+        ot = opentok.OpenTok(VONAGE_API_KEY, VONAGE_API_SECRET)
+        logger.info("Vonage OpenTok initialized successfully")
+    else:
+        logger.warning("Vonage credentials not configured. Video calls will not work.")
+except ImportError as e:
+    logger.error(f"opentok package not installed: {e}. Install with: pip install opentok==3.13.0")
+except Exception as e:
+    logger.error(f"Error initializing Vonage OpenTok: {e}", exc_info=True)
 
 
 def create_session():
