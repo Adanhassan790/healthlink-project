@@ -19,13 +19,13 @@ class ThinkingHealthBot:
         self.use_local = use_local
         
         if not use_local:
-            # For OpenAI GPT (lazy import)
+            # For Groq API (FREE - no payment needed - lazy import)
             try:
-                import openai
-                openai.api_key = os.getenv('OPENAI_API_KEY')
-                self.model = "gpt-3.5-turbo"
+                from groq import Groq
+                self.llm_client = Groq(api_key=os.getenv('GROQ_API_KEY'))
+                self.model = "mixtral-8x7b-32768"  # Free Groq model
             except ImportError:
-                print("OpenAI module not installed. Chat features disabled.")
+                print("Groq module not installed. Chat features disabled.")
                 self.use_local = True
                 self.model = "fallback"
         else:
@@ -98,10 +98,9 @@ class ThinkingHealthBot:
         
         try:
             if not self.use_local:
-                # Call OpenAI API (lazy import)
+                # Call Groq API (FREE - no payment needed!)
                 try:
-                    import openai
-                    response = openai.ChatCompletion.create(
+                    response = self.llm_client.chat.completions.create(
                         model=self.model,
                         messages=[
                             {"role": "system", "content": system_prompt},
@@ -111,7 +110,8 @@ class ThinkingHealthBot:
                         max_tokens=500
                     )
                     result = json.loads(response.choices[0].message.content)
-                except ImportError:
+                except Exception as e:
+                    print(f"Groq API error: {e}")
                     result = self.fallback_analysis(user_input)
             else:
                 # Call local LLM
@@ -180,10 +180,9 @@ class ThinkingHealthBot:
         
         try:
             if not self.use_local:
-                # Import openai lazily
+                # Use Groq API (FREE - no payment needed!)
                 try:
-                    import openai
-                    response = openai.ChatCompletion.create(
+                    response = self.llm_client.chat.completions.create(
                         model=self.model,
                         messages=[
                             {"role": "system", "content": "You are a medical triage specialist."},
@@ -193,7 +192,8 @@ class ThinkingHealthBot:
                         max_tokens=600
                     )
                     return response.choices[0].message.content
-                except ImportError:
+                except Exception as e:
+                    print(f"Groq API error: {e}")
                     return self.fallback_recommendation()
             else:
                 return self.call_local_llm("You are a medical triage specialist.", reasoning_prompt)

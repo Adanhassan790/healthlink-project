@@ -1,5 +1,5 @@
 # triage/llm_triage_service.py - HYBRID TRIAGE SERVICE
-# Uses OpenAI GPT-3.5-turbo with fallback to advanced rule-based system
+# Uses Groq API (FREE - no credit card needed) with fallback to advanced rule-based system
 import os
 import json
 from datetime import datetime
@@ -7,11 +7,9 @@ from dotenv import load_dotenv
 import logging
 
 try:
-    import openai
-    from openai import OpenAI
+    from groq import Groq
 except ImportError:
-    openai = None
-    OpenAI = None
+    Groq = None
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -19,28 +17,28 @@ logger = logging.getLogger(__name__)
 
 class LLMTriageService:
     """
-    Hybrid triage service using OpenAI's GPT model with smart fallback.
+    Hybrid triage service using Groq's LLM (free API) with smart fallback.
     Gracefully degrades to rule-based triage when API is unavailable.
     """
 
-    def __init__(self, use_openai=True):
-        self.api_key = os.getenv('OPENAI_API_KEY')
-        self.use_openai = use_openai and self.api_key is not None
+    def __init__(self, use_groq=True):
+        self.api_key = os.getenv('GROQ_API_KEY')
+        self.use_groq = use_groq and self.api_key is not None
         self.client = None
-        self.model = "gpt-3.5-turbo"
+        self.model = "mixtral-8x7b-32768"  # Free Groq model (very fast)
         self.conversation_history = []
         self.symptoms_identified = []
         self.state = 'greeting'  # greeting -> symptom_gathering -> details -> recommendation
         self.api_available = False
         
-        # Try to initialize OpenAI client
-        if self.use_openai:
+        # Try to initialize Groq client
+        if self.use_groq:
             try:
-                self.client = OpenAI(api_key=self.api_key)
+                self.client = Groq(api_key=self.api_key)
                 self.api_available = True
-                logger.info("✅ OpenAI API client initialized successfully")
+                logger.info("✅ Groq API client initialized successfully (FREE - no payment needed!)")
             except Exception as e:
-                logger.warning(f"⚠️ OpenAI initialization failed: {e}. Using fallback mode.")
+                logger.warning(f"⚠️ Groq initialization failed: {e}. Using fallback mode.")
                 self.api_available = False
 
     def system_prompt(self):
@@ -94,7 +92,7 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
     def process_patient_message(self, user_message: str) -> dict:
         """
         Process a patient message intelligently.
-        Tries OpenAI API first, falls back to rule-based system if API unavailable.
+        Tries Groq API first, falls back to rule-based system if API unavailable.
         """
         try:
             # Add user message to history
@@ -103,9 +101,9 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
                 "content": user_message
             })
 
-            # Try OpenAI first if available
+            # Try Groq first if available
             if self.api_available and self.client:
-                return self._process_with_openai(user_message)
+                return self._process_with_groq(user_message)
             else:
                 # Fallback to rule-based system
                 logger.info("💡 Using fallback rule-based triage")
@@ -115,8 +113,8 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
             logger.error(f"Error in process_patient_message: {e}")
             return self._create_error_response(f"Processing error: {str(e)}")
 
-    def _process_with_openai(self, user_message: str) -> dict:
-        """Process using OpenAI API"""
+    def _process_with_groq(self, user_message: str) -> dict:
+        """Process using Groq API (FREE - no payment needed)"""
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -129,7 +127,7 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
             )
 
             ai_message = response.choices[0].message.content
-            logger.debug(f"OpenAI response: {ai_message[:100]}...")
+            logger.debug(f"Groq response: {ai_message[:100]}...")
 
             # Parse JSON response
             analysis = self._parse_json_response(ai_message)
@@ -144,8 +142,8 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
             self._update_state(analysis)
             return analysis
 
-        except (openai.RateLimitError, openai.APIConnectionError, openai.APIError) as e:
-            logger.warning(f"⚠️ OpenAI API unavailable: {e}. Switching to fallback.")
+        except Exception as e:
+            logger.warning(f"⚠️ Groq API unavailable: {e}. Switching to fallback.")
             self.api_available = False
             return self._process_with_fallback(user_message)
 
