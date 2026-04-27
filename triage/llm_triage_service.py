@@ -35,9 +35,24 @@ class LLMTriageService:
         # Try to initialize Groq client
         if self.use_groq:
             try:
-                self.client = Groq(api_key=self.api_key)
+                # Initialize Groq client with minimal config - no proxy arguments
+                self.client = Groq(api_key=self.api_key, timeout=20)
                 self.api_available = True
                 logger.info("✅ Groq API client initialized successfully (FREE - no payment needed!)")
+            except TypeError as e:
+                if 'proxies' in str(e):
+                    logger.warning(f"⚠️ Groq initialization failed due to proxy config: {e}")
+                    # Try without proxy settings
+                    try:
+                        self.client = Groq(api_key=self.api_key)
+                        self.api_available = True
+                        logger.info("✅ Groq API client initialized (without proxies)")
+                    except Exception as e2:
+                        logger.error(f"❌ Groq client failed even without proxies: {e2}")
+                        self.api_available = False
+                else:
+                    logger.warning(f"⚠️ Groq initialization failed: {e}. Using fallback mode.")
+                    self.api_available = False
             except Exception as e:
                 logger.warning(f"⚠️ Groq initialization failed: {e}. Using fallback mode.")
                 self.api_available = False
