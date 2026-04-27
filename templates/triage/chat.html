@@ -163,6 +163,144 @@
         border-bottom-left-radius: 4px;
         font-style: italic;
     }
+
+    /* Crisis Modal Styles */
+    .crisis-modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .crisis-modal-content {
+        background-color: white;
+        margin: 5% auto;
+        padding: 0;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 600px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(-50px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .crisis-modal-header {
+        background: #ef4444;
+        color: white;
+        padding: 2rem;
+        border-radius: 12px 12px 0 0;
+        text-align: center;
+    }
+
+    .crisis-modal-header h2 {
+        margin: 0;
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .crisis-modal-header p {
+        margin: 0;
+        font-size: 1.1rem;
+        opacity: 0.9;
+    }
+
+    .crisis-modal-body {
+        padding: 2rem;
+    }
+
+    .crisis-section {
+        margin-bottom: 2rem;
+    }
+
+    .crisis-section h3 {
+        color: #ef4444;
+        font-size: 1.2rem;
+        margin-top: 0;
+        margin-bottom: 1rem;
+    }
+
+    .hotline-item {
+        background: #fef2f2;
+        border-left: 4px solid #ef4444;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 4px;
+    }
+
+    .hotline-name {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .hotline-number {
+        color: #ef4444;
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .hotline-available {
+        color: #6b7280;
+        font-size: 0.85rem;
+    }
+
+    .action-item {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        background: #f0fdf4;
+        border-radius: 4px;
+    }
+
+    .action-item::before {
+        content: "✓";
+        color: #10b981;
+        font-weight: bold;
+        margin-right: 1rem;
+        font-size: 1.2rem;
+    }
+
+    .crisis-modal-footer {
+        padding: 1.5rem 2rem;
+        border-top: 1px solid #e5e7eb;
+        text-align: center;
+    }
+
+    .close-crisis-modal {
+        background: #6b7280;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+    .close-crisis-modal:hover {
+        background: #4b5563;
+    }
 </style>
 
 <div class="chat-container">
@@ -198,6 +336,41 @@
                             <textarea 
                                 class="chat-input" 
                                 id="userInput" 
+                                placeholder="Describe your symptoms here..." 
+                                rows="1"
+                                required
+                            ></textarea>
+                            <button type="submit" class="send-btn">Send</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Crisis Modal -->
+<div id="crisisModal" class="crisis-modal">
+    <div class="crisis-modal-content">
+        <div class="crisis-modal-header">
+            <h2>🚨 Crisis Support Available</h2>
+            <p>You are not alone. Help is available 24/7.</p>
+        </div>
+        <div class="crisis-modal-body">
+            <div class="crisis-section">
+                <h3>📞 Crisis Hotlines</h3>
+                <div id="hotelinesContainer"></div>
+            </div>
+            <div class="crisis-section">
+                <h3>⚡ Immediate Actions</h3>
+                <div id="actionsContainer"></div>
+            </div>
+        </div>
+        <div class="crisis-modal-footer">
+            <button class="close-crisis-modal" onclick="closeCrisisModal()">I understand - Acknowledge and Continue</button>
+        </div>
+    </div>
+</div>
                                 placeholder="Describe your symptoms here..." 
                                 rows="1"
                                 required
@@ -269,17 +442,25 @@
                 if (data.error) {
                     addMessage('Sorry, there was an error processing your request. Please try again.', 'ai');
                 } else {
-                    // Add AI response (supports markdown-style formatting)
-                    addFormattedMessage(data.response, 'ai');
-                    
-                    // Show collected symptoms if any
-                    if (data.symptoms && data.symptoms.length > 0) {
-                        updateSymptomsList(data.symptoms);
-                    }
-                    
-                    // If recommendation is ready, show action buttons
-                    if (data.ready_for_results) {
-                        showActionButtons(data.session_id);
+                    // Check if this is a mental health crisis
+                    if (data.is_mental_health_crisis && data.crisis_resources) {
+                        // Add AI response
+                        addFormattedMessage(data.response, 'ai');
+                        // Show crisis modal
+                        showCrisisModal(data.crisis_resources);
+                    } else {
+                        // Add AI response (supports markdown-style formatting)
+                        addFormattedMessage(data.response, 'ai');
+                        
+                        // Show collected symptoms if any
+                        if (data.symptoms && data.symptoms.length > 0) {
+                            updateSymptomsList(data.symptoms);
+                        }
+                        
+                        // If recommendation is ready, show action buttons
+                        if (data.ready_for_results) {
+                            showActionButtons(data.session_id);
+                        }
                     }
                 }
             } catch (error) {
@@ -445,6 +626,60 @@
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             document.getElementById('chatForm').dispatchEvent(new Event('submit'));
+        }
+    });
+
+    // Crisis Modal Functions
+    function showCrisisModal(crisisResources) {
+        const modal = document.getElementById('crisisModal');
+        
+        // Build hotlines HTML
+        let hotelinesHTML = '';
+        if (crisisResources.hotlines) {
+            crisisResources.hotlines.forEach(hotline => {
+                if (hotline.number) {
+                    hotelinesHTML += `
+                        <div class="hotline-item">
+                            <div class="hotline-name">${hotline.name}</div>
+                            <div class="hotline-number">${hotline.number}</div>
+                            <div class="hotline-available">${hotline.available}</div>
+                        </div>
+                    `;
+                } else if (hotline.url) {
+                    hotelinesHTML += `
+                        <div class="hotline-item">
+                            <div class="hotline-name">${hotline.name}</div>
+                            <a href="${hotline.url}" target="_blank" style="color: #10b981; font-weight: 600;">${hotline.available}</a>
+                        </div>
+                    `;
+                }
+            });
+        }
+        document.getElementById('hotelinesContainer').innerHTML = hotelinesHTML;
+        
+        // Build actions HTML
+        let actionsHTML = '';
+        if (crisisResources.immediate_actions) {
+            crisisResources.immediate_actions.forEach(action => {
+                actionsHTML += `<div class="action-item">${action}</div>`;
+            });
+        }
+        document.getElementById('actionsContainer').innerHTML = actionsHTML;
+        
+        // Show modal
+        modal.style.display = 'block';
+    }
+
+    function closeCrisisModal() {
+        const modal = document.getElementById('crisisModal');
+        modal.style.display = 'none';
+    }
+
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('crisisModal');
+        if (event.target === modal) {
+            closeCrisisModal();
         }
     });
 </script>

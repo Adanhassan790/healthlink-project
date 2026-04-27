@@ -110,8 +110,14 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
         """
         Process a patient message intelligently.
         Tries Groq API first, falls back to rule-based system if API unavailable.
+        ALWAYS checks for mental health crises and provides crisis resources.
         """
         try:
+            # CRITICAL: Check for mental health crisis FIRST
+            if self._detect_mental_health_crisis(user_message):
+                logger.critical(f"🚨 MENTAL HEALTH CRISIS DETECTED: {user_message[:50]}...")
+                return self._create_crisis_response(user_message)
+            
             # Add user message to history
             self.conversation_history.append({
                 "role": "user",
@@ -121,15 +127,68 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
             # Try Groq first if available
             if self.api_available and self.client:
                 logger.info(f"✅ USING GROQ AI for: '{user_message[:50]}...'")
-                return self._process_with_groq(user_message)
+                response = self._process_with_groq(user_message)
             else:
                 # Fallback to rule-based system
                 logger.info(f"⚠️ USING FALLBACK RULES for: '{user_message[:50]}...' (api_available={self.api_available}, client={self.client is not None})")
-                return self._process_with_fallback(user_message)
+                response = self._process_with_fallback(user_message)
+            
+            # Check if crisis was detected in the AI response
+            if response.get('emergency_alert') and self._detect_mental_health_crisis(response.get('next_question', '')):
+                response['is_mental_health_crisis'] = True
+                response['crisis_resources'] = self._get_crisis_resources()
+            
+            return response
 
         except Exception as e:
             logger.error(f"Error in process_patient_message: {e}")
             return self._create_error_response(f"Processing error: {str(e)}")
+    
+    def _create_crisis_response(self, user_message: str) -> dict:
+        """Create immediate crisis response with resources"""
+        logger.critical("Creating crisis response with emergency resources...")
+        return {
+            "thinking": "Mental health crisis detected - providing immediate crisis resources",
+            "extracted_symptoms": ["Suicidal ideation", "Mental health crisis"],
+            "severity_assessment": "high",
+            "emergency_alert": True,
+            "is_mental_health_crisis": True,
+            "next_question": "I'm concerned about your safety. Please reach out for help immediately. Crisis counselors are available 24/7.",
+            "ready_for_recommendation": False,
+            "recommendation": None,
+            "crisis_resources": self._get_crisis_resources()
+        }
+    
+    def _get_crisis_resources(self) -> dict:
+        """Get mental health crisis resources and hotlines"""
+        return {
+            "title": "🚨 Mental Health Crisis Support",
+            "message": "You are not alone. Help is available right now.",
+            "hotlines": [
+                {
+                    "name": "National Suicide Prevention Lifeline (US)",
+                    "number": "988",
+                    "available": "24/7 - Call or text"
+                },
+                {
+                    "name": "Crisis Text Line",
+                    "number": "Text HOME to 741741",
+                    "available": "24/7"
+                },
+                {
+                    "name": "International Association for Suicide Prevention",
+                    "url": "https://www.iasp.info/resources/Crisis_Centres/",
+                    "available": "Find local resources"
+                }
+            ],
+            "immediate_actions": [
+                "Tell someone you trust how you're feeling",
+                "Call emergency services (911 in US) if in immediate danger",
+                "Go to the nearest emergency room",
+                "Remove access to means of self-harm",
+                "Stay with someone until you feel safe"
+            ]
+        }
 
     def _process_with_groq(self, user_message: str) -> dict:
         """Process using Groq API (FREE - no payment needed)"""
@@ -448,14 +507,53 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
             return 'low'
 
     def _detect_emergency_from_text(self, text: str) -> bool:
-        """Detect emergency keywords"""
+        """Detect emergency keywords - includes mental health crises"""
         emergency_keywords = [
+            # Physical emergencies
             'chest pain', 'difficulty breathing', 'loss of consciousness', 'severe bleeding',
             'poisoning', 'choking', 'severe trauma', 'unconscious', 'can\'t breathe',
-            'severe chest', 'heart attack', 'stroke', 'severe injury'
+            'severe chest', 'heart attack', 'stroke', 'severe injury',
+            # Mental health crises
+            'suicidal', 'suicide', 'kill myself', 'harm myself', 'self harm',
+            'want to die', 'end my life', 'end it all', 'hurt myself'
         ]
         text_lower = text.lower()
         return any(keyword in text_lower for keyword in emergency_keywords)
+
+    def _detect_mental_health_crisis(self, text: str) -> bool:
+        """Specifically detect mental health crisis situations"""
+        crisis_keywords = [
+            'suicidal', 'suicide', 'kill myself', 'kill me', 'kill myself', 'harm myself', 'self harm',
+            'want to die', 'end my life', 'end it all', 'hurt myself', 'give up',
+            'no point', 'worthless', 'hopeless', 'can\'t go on', 'end it',
+            'cutting myself', 'cut myself', 'cut my',
+            'hang myself', 'overdose', 'take my life', 'life is not worth',
+            'nothing to live for', 'better off dead', 'don\'t want to live',
+            'end my suffering', 'take my own life', 'take a lethal',
+            'feel like dying', 'i am going to', 'i will',
+            'go on', 'can\'t continue', 'going to end it'
+        ]
+        
+        text_lower = text.lower()
+        
+        # Check for keywords - but be careful not to flag phrases like "I want to harm others"
+        # We want to flag self-harm and suicidal ideation, not general harm references
+        self_harm_keywords = [
+            'harm myself', 'hurt myself', 'harm me', 'hurt me', 'cut myself', 'cut my',
+            'harm my', 'hurt my', 'hurt myself'
+        ]
+        
+        for keyword in crisis_keywords:
+            if keyword in text_lower:
+                return True
+        
+        # Check self-harm keywords - these are more likely to be false positives
+        for keyword in self_harm_keywords:
+            if keyword in text_lower:
+                return True
+                
+        return False
+
 
     def _extract_duration_from_text(self, text: str) -> str:
         """

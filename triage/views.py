@@ -294,6 +294,8 @@ def triage_chat_api(request):
                 'state': llm_service.state,
                 'severity': analysis.get('severity_assessment', 'medium'),
                 'emergency_alert': analysis.get('emergency_alert', False),
+                'is_mental_health_crisis': analysis.get('is_mental_health_crisis', False),
+                'crisis_resources': analysis.get('crisis_resources', None),
                 'mode': mode,
                 'api_available': llm_service.api_available
             })
