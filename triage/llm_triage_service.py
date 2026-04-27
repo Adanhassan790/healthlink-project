@@ -28,6 +28,7 @@ class LLMTriageService:
         self.model = "mixtral-8x7b-32768"  # Free Groq model (very fast)
         self.conversation_history = []
         self.symptoms_identified = []
+        self.symptom_duration = None  # Store actual duration from user input
         self.state = 'greeting'  # greeting -> symptom_gathering -> details -> recommendation
         self.api_available = False
         
@@ -209,6 +210,11 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
         symptoms = self._extract_symptoms_from_text(user_message)
         self.symptoms_identified.extend([s for s in symptoms if s not in self.symptoms_identified])
 
+        # Extract duration from user message (e.g., "6 days", "2 weeks")
+        duration = self._extract_duration_from_text(user_message)
+        if duration:
+            self.symptom_duration = duration
+
         # Assess severity and emergency
         severity = self._assess_severity_from_text(user_message)
         emergency = self._detect_emergency_from_text(user_message)
@@ -238,12 +244,15 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
                 "content": f"Recommending {specialty}"
             })
             
+            # Use actual duration if extracted, otherwise use generic message
+            duration_text = self.symptom_duration if self.symptom_duration else "recently"
+            
             return {
-                "thinking": f"Based on {len(self.symptoms_identified)} symptom(s) with {severity} severity",
+                "thinking": f"Based on {len(self.symptoms_identified)} symptom(s) with {severity} severity lasting {duration_text}",
                 "extracted_symptoms": self.symptoms_identified,
                 "severity_assessment": severity,
                 "emergency_alert": emergency,
-                "next_question": f"Based on your {severity.lower()} {self.symptoms_identified[0].lower()} that's lasted {turn_count} days, I recommend seeing a {specialty} specialist.",
+                "next_question": f"Based on your {severity.lower()} {self.symptoms_identified[0].lower()} that's lasted {duration_text}, I recommend seeing a {specialty} specialist.",
                 "ready_for_recommendation": True,
                 "recommendation": {
                     "primary_specialty": specialty,
@@ -262,12 +271,15 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
                 "content": f"Recommending {specialty}"
             })
             
+            # Use actual duration if extracted
+            duration_text = self.symptom_duration if self.symptom_duration else "for some time"
+            
             return {
                 "thinking": f"Based on symptoms: {', '.join(self.symptoms_identified)}",
                 "extracted_symptoms": self.symptoms_identified,
                 "severity_assessment": severity,
                 "emergency_alert": emergency,
-                "next_question": f"Based on your symptoms of {', '.join(self.symptoms_identified)}, I recommend seeing a {specialty} specialist.",
+                "next_question": f"Based on your symptoms of {', '.join(self.symptoms_identified)} lasting {duration_text}, I recommend seeing a {specialty} specialist.",
                 "ready_for_recommendation": True,
                 "recommendation": {
                     "primary_specialty": specialty,
@@ -420,6 +432,45 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
         text_lower = text.lower()
         return any(keyword in text_lower for keyword in emergency_keywords)
 
+    def _extract_duration_from_text(self, text: str) -> str:
+        """
+        Extract duration from text (e.g., "6 days", "2 weeks", "a month")
+        Returns: duration string like "6 days" or None if not found
+        """
+        import re
+        
+        text_lower = text.lower()
+        
+        # Pattern 1: Number + day/week/month/year (e.g., "6 days", "2 weeks")
+        match = re.search(r'(\d+)\s*(day|week|month|year)s?', text_lower)
+        if match:
+            number = match.group(1)
+            unit = match.group(2)
+            # Pluralize if number != 1
+            if number != '1':
+                unit = unit + 's'
+            return f"{number} {unit}"
+        
+        # Pattern 2: Written out numbers (e.g., "six days", "two weeks")
+        text_words = text_lower.split()
+        number_words = {
+            'one': '1', 'two': '2', 'three': '3', 'four': '4', 'five': '5',
+            'six': '6', 'seven': '7', 'eight': '8', 'nine': '9', 'ten': '10',
+            'a': '1', 'couple': '2'
+        }
+        
+        time_units = ['day', 'days', 'week', 'weeks', 'month', 'months', 'year', 'years']
+        
+        for i, word in enumerate(text_words):
+            if word in number_words:
+                # Check if next word is a time unit
+                if i + 1 < len(text_words) and text_words[i + 1] in time_units:
+                    num = number_words[word]
+                    unit = text_words[i + 1]
+                    return f"{num} {unit}"
+        
+        return None
+
     def _assess_urgency(self, symptoms: list, specialty: str) -> str:
         """
         Assess urgency level based on symptoms and specialty.
@@ -468,6 +519,7 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
         """Reset conversation for new patient"""
         self.conversation_history = []
         self.symptoms_identified = []
+        self.symptom_duration = None
         self.state = 'greeting'
 
     def get_specialty_options(self) -> list:
