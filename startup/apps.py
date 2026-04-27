@@ -8,6 +8,24 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def create_admin_user_if_not_exists():
+    """Create default admin superuser if it doesn't exist"""
+    try:
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        if not User.objects.filter(username='admin').exists():
+            User.objects.create_superuser(
+                username='admin',
+                email='admin@healthlink.com',
+                password='AdminPass123!'
+            )
+            logger.info("STARTUP: Created default admin superuser (admin/AdminPass123!)")
+        else:
+            logger.info("STARTUP: Admin user already exists")
+    except Exception as e:
+        logger.error(f"STARTUP: Error creating admin user: {str(e)}")
+
 class StartupAppConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'startup'
@@ -26,8 +44,12 @@ class StartupAppConfig(AppConfig):
             logger.info("STARTUP: Migrations completed successfully!")
             logger.info("=" * 70)
             
-            # Populate sample doctors if database is empty
+            # Create admin user
             logger.info("")
+            logger.info("STARTUP: Creating admin user if needed...")
+            create_admin_user_if_not_exists()
+            
+            # Populate sample doctors if database is empty
             logger.info("STARTUP: Populating sample data...")
             call_command('populate_doctors', verbosity=1)
             logger.info("STARTUP: Sample data populated!")
