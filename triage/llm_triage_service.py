@@ -104,10 +104,11 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
 
             # Try Groq first if available
             if self.api_available and self.client:
+                logger.info(f"✅ USING GROQ AI for: '{user_message[:50]}...'")
                 return self._process_with_groq(user_message)
             else:
                 # Fallback to rule-based system
-                logger.info("💡 Using fallback rule-based triage")
+                logger.info(f"⚠️ USING FALLBACK RULES for: '{user_message[:50]}...' (api_available={self.api_available}, client={self.client is not None})")
                 return self._process_with_fallback(user_message)
 
         except Exception as e:
@@ -117,6 +118,7 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
     def _process_with_groq(self, user_message: str) -> dict:
         """Process using Groq API (FREE - no payment needed)"""
         try:
+            logger.info(f"🤖 Groq API call started with model: {self.model}")
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -128,7 +130,7 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
             )
 
             ai_message = response.choices[0].message.content
-            logger.debug(f"Groq response: {ai_message[:100]}...")
+            logger.info(f"✅ Groq response received: {ai_message[:80]}...")
 
             # Parse JSON response
             analysis = self._parse_json_response(ai_message)
@@ -144,7 +146,8 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
             return analysis
 
         except Exception as e:
-            logger.warning(f"⚠️ Groq API unavailable: {e}. Switching to fallback.")
+            logger.error(f"❌ Groq API ERROR: {type(e).__name__}: {str(e)}")
+            logger.error(f"Falling back to rule-based system due to: {e}")
             self.api_available = False
             return self._process_with_fallback(user_message)
 
@@ -561,7 +564,7 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
             'Migraine': ['migraine', 'severe headache'],
             'Nausea': ['nausea', 'nauseous', 'feeling sick', 'queasy'],
             'Vomiting': ['vomit', 'vomiting', 'threw up', 'sick'],
-            'Diarrhea': ['diarrhea', 'diarrhoea', 'loose stool', 'loose stools'],
+            'Diarrhea': ['diarrhea', 'diarrhoea', 'diarhoea', 'diahoea', 'loose stool', 'loose stools', 'loose motion'],
             'Chest Pain': ['chest pain', 'chest ache', 'chest hurt', 'cardiac pain'],
             'Shortness of Breath': ['shortness of breath', 'breathing problem', 'can\'t breathe', 'difficulty breathing'],
             'Dizziness': ['dizziness', 'dizzy', 'lightheaded', 'vertigo', 'spinning'],
@@ -572,7 +575,7 @@ REMEMBER: Pure JSON only. No markdown. No code blocks. Just valid JSON."""
             'Rash': ['rash', 'rashes', 'skin rash', 'itchy rash', 'body itching', 'itching all over', 'skin itching'],
             'Joint Pain': ['joint pain', 'joint ache', 'joint hurt', 'arthritis'],
             'Back Pain': ['back pain', 'back ache', 'spinal pain', 'lumbar pain'],
-            'Abdominal Pain': ['abdominal pain', 'stomach pain', 'belly pain', 'tummy pain', 'stomach ache'],
+            'Abdominal Pain': ['abdominal pain', 'stomach pain', 'stomach ache', 'stomach issue', 'stomach problem', 'belly pain', 'tummy pain', 'pain in stomach', 'pain in belly', 'stomach ache', 'abdominal'],
             'Anxiety': ['anxiety', 'anxious', 'worried', 'nervousness', 'nervous'],
             'Depression': ['depression', 'depressed', 'sad', 'hopeless'],
             'Insomnia': ['insomnia', 'can\'t sleep', 'sleep problem', 'sleeping problem', 'hard time sleep', 'difficulty sleep', 'trouble sleep'],
