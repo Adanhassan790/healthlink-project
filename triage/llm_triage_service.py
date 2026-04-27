@@ -25,7 +25,7 @@ class LLMTriageService:
         self.api_key = os.getenv('GROQ_API_KEY')
         self.use_groq = use_groq and self.api_key is not None
         self.client = None
-        self.model = "mixtral-8x7b-32768"  # Free Groq model (very fast)
+        self.model = "llama-3.1-70b-versatile"  # Updated from decommissioned mixtral model
         self.conversation_history = []
         self.symptoms_identified = []
         self.symptom_duration = None  # Store actual duration from user input
