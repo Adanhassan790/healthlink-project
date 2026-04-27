@@ -258,6 +258,10 @@ def triage_chat_api(request):
             if analysis.get('ready_for_recommendation') and analysis.get('recommendation'):
                 recommendation = analysis['recommendation']
                 
+                # If next_question is empty (AI ready to recommend), use recommendation reasoning
+                if not response_text or response_text.strip() == '':
+                    response_text = f"Based on your symptoms of {', '.join(llm_service.symptoms_identified)}, I recommend seeing a {recommendation.get('primary_specialty', 'General')} specialist for proper evaluation and care."
+                
                 # Create triage session
                 triage_session = TriageSession.objects.create(
                     user=request.user,
