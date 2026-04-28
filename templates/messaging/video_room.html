@@ -6,7 +6,7 @@
     <title>Video Consultation - HealthLink</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Zegocloud SDK -->
-    <script src="https://cdn.zegocloud.com/zegocloud/express-web-sdk/latest/zego-express-web-sdk.min.js"></script>
+    <script src="https://web.zego.im/sdk/zego-express-web-sdk.min.js"></script>
     <style>
     * {
         margin: 0;
@@ -626,9 +626,22 @@ async function initializeZegocloud() {
     }
     
     try {
+        // Wait for SDK to load
+        if (typeof window.ZegoExpressEngine === 'undefined') {
+            console.log('Waiting for ZegoExpressEngine SDK to load...');
+            let attempts = 0;
+            while (typeof window.ZegoExpressEngine === 'undefined' && attempts < 20) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                attempts++;
+            }
+            
+            if (typeof window.ZegoExpressEngine === 'undefined') {
+                throw new Error('Zegocloud SDK failed to load. ZegoExpressEngine not found.');
+            }
+        }
+        
         // Create Zegocloud instance
-        const { ZegoExpressEngine } = window.ZegoExpressWeb;
-        zegoInstance = new ZegoExpressEngine(
+        zegoInstance = new window.ZegoExpressEngine(
             ZEGOCLOUD_APP_ID, 
             ZEGOCLOUD_ACCESS_TOKEN
         );
