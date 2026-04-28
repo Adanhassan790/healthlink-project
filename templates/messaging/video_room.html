@@ -5,11 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Consultation - HealthLink</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Zegocloud SDK from Skypack CDN (Cloudflare backed) -->
-    <script type="module">
-        import ZegoExpressEngine from "https://cdn.skypack.dev/zego-express-engine-webrtc@latest";
-        window.ZegoExpressEngine = ZegoExpressEngine;
-    </script>
+    <!-- Zegocloud dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/protobufjs@7.2.4/dist/protobuf.min.js"></script>
+    <!-- Zegocloud SDK from jsDelivr (fully bundled) -->
+    <script src="https://cdn.jsdelivr.net/npm/zego-express-web-sdk@2.9.9/index.min.js"></script>
     <style>
     * {
         margin: 0;
@@ -634,30 +633,45 @@ async function initializeZegocloud() {
         let attempts = 0;
         
         // Check if SDK has loaded with a longer timeout
-        while (!window.ZegoExpressEngine && attempts < 50) { // 25 seconds max
+        while (attempts < 50) { // 25 seconds max
+            let ZegoClass = null;
+            
+            // Check multiple SDK export patterns
+            if (window.ZegoExpressEngine) {
+                ZegoClass = window.ZegoExpressEngine;
+            } else if (window.ZegoExpressWeb && window.ZegoExpressWeb.ZegoExpressEngine) {
+                ZegoClass = window.ZegoExpressWeb.ZegoExpressEngine;
+            } else if (window.zego && window.zego.ZegoExpressEngine) {
+                ZegoClass = window.zego.ZegoExpressEngine;
+            }
+            
+            if (ZegoClass) {
+                console.log('✓ Zegocloud SDK loaded successfully');
+                console.log('✓ Creating Zegocloud instance with AppID:', ZEGOCLOUD_APP_ID);
+                zegoInstance = new ZegoClass(ZEGOCLOUD_APP_ID, ZEGOCLOUD_ACCESS_TOKEN);
+                break;
+            }
+            
             await new Promise(resolve => setTimeout(resolve, 500));
             attempts++;
             
             if (attempts % 5 === 0) {
-                console.log(`Attempt ${attempts}/50: Waiting for SDK...`);
+                const zegoGlobals = Object.keys(window).filter(k => k.toLowerCase().includes('zego'));
+                console.log(`Attempt ${attempts}/50: Waiting for SDK... Found: ${zegoGlobals.join(', ')}`);
             }
         }
         
-        if (!window.ZegoExpressEngine) {
+        if (!zegoInstance) {
             // SDK failed to load - provide helpful error message
+            const zegoGlobals = Object.keys(window).filter(k => k.toLowerCase().includes('zego'));
             console.error('Zegocloud SDK failed to load from CDN');
             console.error('Possible causes:');
             console.error('1. Network connectivity issue');
             console.error('2. CDN blocked by firewall/ISP');
             console.error('3. Browser console errors - check above');
+            console.error('Available Zego globals:', zegoGlobals);
             throw new Error('Zegocloud SDK failed to load. Check your internet connection and browser console for errors.');
         }
-        
-        console.log('✓ Zegocloud SDK loaded successfully');
-        console.log('✓ Creating Zegocloud instance with AppID:', ZEGOCLOUD_APP_ID);
-        
-        // Create instance using the SDK
-        zegoInstance = new window.ZegoExpressEngine(ZEGOCLOUD_APP_ID, ZEGOCLOUD_ACCESS_TOKEN);
         
         console.log('✓ Zegocloud instance created');
         
