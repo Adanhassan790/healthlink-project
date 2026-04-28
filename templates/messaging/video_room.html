@@ -5,8 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Consultation - HealthLink</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Zegocloud SDK from official lib.zego.im CDN -->
-    <script src="https://lib.zego.im/web_sdk/zego-express-web.min.js"></script>
+    <!-- Zegocloud SDK from Skypack CDN (Cloudflare backed) -->
+    <script type="module">
+        import ZegoExpressEngine from "https://cdn.skypack.dev/zego-express-engine-webrtc@latest";
+        window.ZegoExpressEngine = ZegoExpressEngine;
+    </script>
     <style>
     * {
         margin: 0;
@@ -626,8 +629,8 @@ async function initializeZegocloud() {
     }
     
     try {
-        // Wait for Zegocloud SDK to load from the official CDN
-        console.log('Waiting for Zegocloud SDK to load from official CDN...');
+        // Wait for Zegocloud SDK to load from Skypack CDN
+        console.log('Waiting for Zegocloud SDK to load from Skypack CDN...');
         let attempts = 0;
         
         // Check if SDK has loaded with a longer timeout
@@ -641,15 +644,19 @@ async function initializeZegocloud() {
         }
         
         if (!window.ZegoExpressEngine) {
-            // If official CDN didn't work, try a fallback approach
-            console.warn('Official CDN SDK not loaded, attempting fallback...');
-            throw new Error('Zegocloud SDK failed to load. Please ensure you have an active internet connection.');
+            // SDK failed to load - provide helpful error message
+            console.error('Zegocloud SDK failed to load from CDN');
+            console.error('Possible causes:');
+            console.error('1. Network connectivity issue');
+            console.error('2. CDN blocked by firewall/ISP');
+            console.error('3. Browser console errors - check above');
+            throw new Error('Zegocloud SDK failed to load. Check your internet connection and browser console for errors.');
         }
         
         console.log('✓ Zegocloud SDK loaded successfully');
         console.log('✓ Creating Zegocloud instance with AppID:', ZEGOCLOUD_APP_ID);
         
-        // Create instance using the official SDK
+        // Create instance using the SDK
         zegoInstance = new window.ZegoExpressEngine(ZEGOCLOUD_APP_ID, ZEGOCLOUD_ACCESS_TOKEN);
         
         console.log('✓ Zegocloud instance created');
