@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Consultation - HealthLink</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://static.opentok.com/v2.20/js/opentok.min.js"></script>
+    <!-- Zegocloud SDK -->
+    <script src="https://cdn.zegocloud.com/zegocloud/express-web-sdk/latest/zego-express-web-sdk.min.js"></script>
     <style>
     * {
         margin: 0;
@@ -162,7 +163,20 @@
         border: 2px solid rgba(102, 126, 234, 0.2);
     }
     
+    #zegocloud-local-video {
+        flex: 0 0 30%;
+        position: relative;
+        border: 2px solid rgba(102, 126, 234, 0.2);
+    }
+    
     #vonage-subscribers {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    #zegocloud-remote-videos {
         flex: 1;
         display: flex;
         flex-direction: column;
@@ -439,8 +453,8 @@
     
     <!-- Video Room -->
     <div class="video-wrapper">
-        <div id="vonage-publisher" class="video-stream"></div>
-        <div id="vonage-subscribers" class="video-stream"></div>
+        <div id="zegocloud-local-video" class="video-stream"></div>
+        <div id="zegocloud-remote-videos" class="video-stream"></div>
     </div>
     
     <!-- Control Toolbar -->
@@ -457,13 +471,14 @@
     </div>
 </div>
 
-<!-- Vonage Video API Script -->
+<!-- Zegocloud Video API Script -->
 <script>
-// ===== VONAGE VIDEO API CONFIGURATION =====
-const VONAGE_API_KEY = "{{ vonage_api_key|escapejs }}";
-const VONAGE_SESSION_ID = "{{ vonage_session_id|escapejs }}";
-const VONAGE_TOKEN = "{{ vonage_token|escapejs }}";
-const VONAGE_ERROR = "{{ vonage_error|escapejs }}";
+// ===== ZEGOCLOUD VIDEO API CONFIGURATION =====
+const ZEGOCLOUD_APP_ID = parseInt("{{ zegocloud_app_id|escapejs }}");
+const ZEGOCLOUD_ROOM_ID = "{{ zegocloud_room_id|escapejs }}";
+const ZEGOCLOUD_ACCESS_TOKEN = "{{ zegocloud_access_token|escapejs }}";
+const ZEGOCLOUD_USER_ID = "{{ zegocloud_user_id|escapejs }}";
+const ZEGOCLOUD_ERROR = "{{ zegocloud_error|escapejs }}";
 
 // Call Information
 const CONVERSATION_ID = {{ conversation.id }};
@@ -474,24 +489,23 @@ const OTHER_USER = "{{ other_user.get_full_name|escapejs }}";
 const IS_DOCTOR = "{{ request.user.user_type }}" === "doctor";
 
 // State variables
-let session = null;
-let publisher = null;
-let subscribers = {};
+let zegoInstance = null;
+let localStream = null;
 let callStartTime = null;
 let callTimerInterval = null;
 let audioEnabled = true;
 let videoEnabled = true;
 
-console.log('=== VONAGE VIDEO CALL ===');
-console.log('API Key:', VONAGE_API_KEY ? 'Present' : 'MISSING');
-console.log('Session ID:', VONAGE_SESSION_ID ? 'Present' : 'MISSING');
-console.log('Token:', VONAGE_TOKEN ? 'Present' : 'MISSING');
-console.log('User:', USER_NAME);
+console.log('=== ZEGOCLOUD VIDEO CALL ===');
+console.log('App ID:', ZEGOCLOUD_APP_ID ? 'Present' : 'MISSING');
+console.log('Room ID:', ZEGOCLOUD_ROOM_ID ? 'Present' : 'MISSING');
+console.log('Access Token:', ZEGOCLOUD_ACCESS_TOKEN ? 'Present' : 'MISSING');
+console.log('User ID:', ZEGOCLOUD_USER_ID);
 
 // Check for errors from backend
-if (VONAGE_ERROR) {
-    console.error('Vonage Error:', VONAGE_ERROR);
-    showError('Vonage setup failed: ' + VONAGE_ERROR);
+if (ZEGOCLOUD_ERROR) {
+    console.error('Zegocloud Error:', ZEGOCLOUD_ERROR);
+    showError('Zegocloud setup failed: ' + ZEGOCLOUD_ERROR);
 }
 
 // ===== CALL TIMER =====
@@ -521,97 +535,62 @@ function updateCallStatus(status) {
     }
 }
 
-// ===== VONAGE EVENT HANDLERS =====
-function handleSessionConnected(event) {
-    console.log('Session connected successfully');
-    updateCallStatus('connected');
+// ===== ZEGOCLOUD EVENT HANDLERS =====
+async function onRemoteUserJoin(roomID, user) {
+    console.log('Remote user joined:', user.userID, user.userName);
     
-    // Start publishing
-    publisher = OT.initPublisher('vonage-publisher', {
-        audioSource: true,
-        videoSource: true,
-        width: '100%',
-        height: '100%'
-    }, (error) => {
-        if (error) {
-            console.error('Publish error:', error);
-            showError('Could not access camera/microphone: ' + error.message);
-        } else {
-            console.log('Publisher ready');
-            session.publish(publisher, (error) => {
-                if (error) {
-                    console.error('Publishing error:', error);
-                    showError('Publishing error: ' + error.message);
-                } else {
-                    console.log('Published successfully');
-                    updateCallStatus('active');
-                    startCallTimer();
-                    document.getElementById('loadingOverlay').classList.add('hidden');
-                }
-            });
-        }
-    });
-}
-
-function handleStreamCreated(event) {
-    console.log('Participant joined');
-    const subscriberId = 'subscriber-' + event.stream.id;
+    // Start playing remote user's stream
+    const remoteVideosContainer = document.getElementById('zegocloud-remote-videos');
     
-    if (subscribers[subscriberId]) {
-        console.log('Already subscribed to stream:', subscriberId);
-        return;
+    // Create video element for remote user
+    let videoElement = document.getElementById(`video-${user.userID}`);
+    if (!videoElement) {
+        videoElement = document.createElement('div');
+        videoElement.id = `video-${user.userID}`;
+        videoElement.className = 'video-stream';
+        videoElement.style.height = '100%';
+        remoteVideosContainer.appendChild(videoElement);
     }
     
-    // Create container for subscriber
-    const container = document.createElement('div');
-    container.id = subscriberId;
-    container.className = 'video-stream';
-    document.getElementById('vonage-subscribers').appendChild(container);
-    
-    // Subscribe to stream
-    const subscriber = session.subscribe(event.stream, container, {
-        audioVolume: 100,
-        width: '100%',
-        height: '100%'
-    }, (error) => {
-        if (error) {
-            console.error('Subscription error:', error);
-        } else {
-            console.log('Subscribed to stream:', subscriberId);
-            subscribers[subscriberId] = subscriber;
-        }
-    });
-}
-
-function handleStreamDestroyed(event) {
-    console.log('Participant left');
-    const subscriberId = 'subscriber-' + event.stream.id;
-    
-    if (subscribers[subscriberId]) {
-        delete subscribers[subscriberId];
-        const container = document.getElementById(subscriberId);
-        if (container) {
-            container.remove();
-        }
+    // Start playing remote stream
+    try {
+        await zegoInstance.startPlayingStream(user.streamID, {
+            audio: true,
+            video: videoElement
+        });
+        console.log('Playing stream for user:', user.userID);
+    } catch (error) {
+        console.error('Error playing stream:', error);
     }
 }
 
-function handleSessionDisconnected(event) {
-    console.log('Session disconnected');
-    cleanup();
+async function onRemoteUserLeave(roomID, user) {
+    console.log('Remote user left:', user.userID);
+    
+    // Stop playing stream
+    try {
+        await zegoInstance.stopPlayingStream(user.streamID);
+    } catch (error) {
+        console.error('Error stopping stream:', error);
+    }
+    
+    // Remove video element
+    const videoElement = document.getElementById(`video-${user.userID}`);
+    if (videoElement) {
+        videoElement.remove();
+    }
 }
 
-function handleError(event) {
-    console.error('Vonage error:', event.error.name, event.error.message);
-    showError('Video error: ' + event.error.message);
+async function onStreamUpdated(roomID, streamID, streamList) {
+    console.log('Stream updated:', streamID);
 }
 
 // ===== CONTROL HANDLERS =====
 document.getElementById('audioToggle').addEventListener('click', () => {
-    if (!publisher) return;
+    if (!zegoInstance) return;
     
     audioEnabled = !audioEnabled;
-    publisher.publishAudio(audioEnabled);
+    zegoInstance.mutePublishingAudio(!audioEnabled);
     
     const btn = document.getElementById('audioToggle');
     btn.classList.toggle('disabled', !audioEnabled);
@@ -620,10 +599,10 @@ document.getElementById('audioToggle').addEventListener('click', () => {
 });
 
 document.getElementById('videoToggle').addEventListener('click', () => {
-    if (!publisher) return;
+    if (!zegoInstance) return;
     
     videoEnabled = !videoEnabled;
-    publisher.publishVideo(videoEnabled);
+    zegoInstance.mutePublishingVideo(!videoEnabled);
     
     const btn = document.getElementById('videoToggle');
     btn.classList.toggle('disabled', !videoEnabled);
@@ -637,43 +616,65 @@ document.getElementById('endCallBtn').addEventListener('click', () => {
 });
 
 // ===== INITIALIZATION =====
-function initializeVonage() {
-    console.log('Initializing Vonage...');
+async function initializeZegocloud() {
+    console.log('Initializing Zegocloud...');
+    updateCallStatus('connecting');
     
-    if (!VONAGE_API_KEY || !VONAGE_SESSION_ID || !VONAGE_TOKEN) {
-        showError('Vonage credentials missing. Please try again.');
+    if (!ZEGOCLOUD_APP_ID || !ZEGOCLOUD_ROOM_ID || !ZEGOCLOUD_ACCESS_TOKEN) {
+        showError('Zegocloud credentials missing. Please try again.');
         return;
     }
     
     try {
-        // Initialize session
-        session = OT.initSession(VONAGE_API_KEY, VONAGE_SESSION_ID);
+        // Create Zegocloud instance
+        const { ZegoExpressEngine } = window.ZegoExpressWeb;
+        zegoInstance = new ZegoExpressEngine(
+            ZEGOCLOUD_APP_ID, 
+            ZEGOCLOUD_ACCESS_TOKEN
+        );
+        
+        console.log('Zegocloud instance created');
         
         // Set up event listeners
-        session.on('sessionConnected', handleSessionConnected);
-        session.on('streamCreated', handleStreamCreated);
-        session.on('streamDestroyed', handleStreamDestroyed);
-        session.on('sessionDisconnected', handleSessionDisconnected);
-        session.on('error', handleError);
+        zegoInstance.on('onRemoteUserJoin', onRemoteUserJoin);
+        zegoInstance.on('onRemoteUserLeave', onRemoteUserLeave);
+        zegoInstance.on('onStreamUpdated', onStreamUpdated);
         
-        // Connect to session
-        session.connect(VONAGE_TOKEN, (error) => {
-            if (error) {
-                console.error('Connection error:', error);
-                showError('Connection failed: ' + error.message);
-            } else {
-                console.log('Connected to session');
-                updateCallStatus('connecting');
-            }
+        // Login to room
+        await zegoInstance.loginRoom(
+            ZEGOCLOUD_ROOM_ID,
+            ZEGOCLOUD_USER_ID,
+            { userID: ZEGOCLOUD_USER_ID, userName: USER_NAME }
+        );
+        
+        console.log('Logged in to room');
+        updateCallStatus('connected');
+        
+        // Start local stream
+        const localVideoContainer = document.getElementById('zegocloud-local-video');
+        localStream = await zegoInstance.createStream({
+            video: { width: 1280, height: 720 },
+            audio: true,
+            videoSource: 'camera',
+            audioSource: 'mic'
         });
         
-        // Hide loading after timeout (in case events don't fire)
-        setTimeout(() => {
-            document.getElementById('loadingOverlay').classList.add('hidden');
-        }, 10000);
+        console.log('Local stream created');
+        
+        // Publish local stream
+        await zegoInstance.startPublishingStream(localStream);
+        
+        // Display local video
+        localVideoContainer.innerHTML = '';
+        localStream.play(localVideoContainer);
+        
+        console.log('Publishing stream');
+        updateCallStatus('active');
+        startCallTimer();
+        document.getElementById('loadingOverlay').classList.add('hidden');
         
     } catch (error) {
-        console.error('Vonage initialization error:', error);
+        console.error('Zegocloud initialization error:', error);
         showError('Initialization error: ' + error.message);
     }
 }
@@ -711,20 +712,21 @@ async function endCallAndRedirect() {
 function cleanup() {
     console.log('Cleaning up...');
     
-    // Unpublish
-    if (publisher) {
-        session.unpublish(publisher);
-    }
-    
-    // Unsubscribe from all streams
-    Object.values(subscribers).forEach(subscriber => {
-        session.unsubscribe(subscriber);
-    });
-    subscribers = {};
-    
-    // Disconnect
-    if (session) {
-        session.disconnect();
+    try {
+        // Stop publishing stream
+        if (zegoInstance && localStream) {
+            zegoInstance.stopPublishingStream();
+            zegoInstance.destroyStream(localStream);
+            localStream = null;
+        }
+        
+        // Logout from room
+        if (zegoInstance) {
+            zegoInstance.logoutRoom();
+            zegoInstance = null;
+        }
+    } catch (error) {
+        console.error('Cleanup error:', error);
     }
     
     console.log('Cleanup complete');
@@ -748,7 +750,7 @@ function showError(message) {
 }
 
 // ===== PAGE LIFECYCLE =====
-document.addEventListener('DOMContentLoaded', initializeVonage);
+document.addEventListener('DOMContentLoaded', initializeZegocloud);
 
 window.addEventListener('beforeunload', () => {
     cleanup();
