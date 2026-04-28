@@ -5,10 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Consultation - HealthLink</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Zegocloud dependencies -->
-    <script src="https://cdn.jsdelivr.net/npm/protobufjs@7.2.4/dist/protobuf.min.js"></script>
-    <!-- Zegocloud SDK from jsDelivr (fully bundled) -->
-    <script src="https://cdn.jsdelivr.net/npm/zego-express-web-sdk@2.9.9/index.min.js"></script>
+    <!-- Zegocloud SDK - Try local first, fallback to CDN -->
+    <!-- Local SDK (download from npm and place in /static/js/zegocloud/) -->
+    <script src="/static/js/zegocloud/zego-express-web.min.js"></script>
+    <!-- Fallback: jsDelivr CDN if local not available -->
+    <script>
+        if (!window.ZegoExpressEngine && !window.ZegoExpressWeb) {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/zego-express-web-sdk@2.9.9/index.min.js';
+            document.head.appendChild(script);
+        }
+    </script>
     <style>
     * {
         margin: 0;
@@ -664,13 +671,15 @@ async function initializeZegocloud() {
         if (!zegoInstance) {
             // SDK failed to load - provide helpful error message
             const zegoGlobals = Object.keys(window).filter(k => k.toLowerCase().includes('zego'));
-            console.error('Zegocloud SDK failed to load from CDN');
-            console.error('Possible causes:');
-            console.error('1. Network connectivity issue');
-            console.error('2. CDN blocked by firewall/ISP');
-            console.error('3. Browser console errors - check above');
+            console.error('❌ Zegocloud SDK failed to load');
+            console.error('SOLUTION: Follow ZEGOCLOUD_LOCAL_SDK_SETUP.md in project root');
+            console.error('Steps:');
+            console.error('1. Download Zegocloud SDK: npm install zego-express-web-sdk@2.9.9');
+            console.error('2. Copy to: /static/js/zegocloud/zego-express-web.min.js');
+            console.error('3. Run: python manage.py collectstatic --noinput');
+            console.error('4. Redeploy to Railway');
             console.error('Available Zego globals:', zegoGlobals);
-            throw new Error('Zegocloud SDK failed to load. Check your internet connection and browser console for errors.');
+            throw new Error('Zegocloud SDK not loaded. Please set up local SDK hosting. See ZEGOCLOUD_LOCAL_SDK_SETUP.md for instructions.');
         }
         
         console.log('✓ Zegocloud instance created');
