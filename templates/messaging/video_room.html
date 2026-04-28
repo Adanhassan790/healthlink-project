@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Consultation - HealthLink</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Zegocloud SDK from unpkg CDN -->
-    <script src="https://unpkg.com/zego-express-engine-webrtc/index.js"></script>
+    <!-- Zegocloud SDK from jsDelivr CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/zego-express-web-sdk@latest/dist/zego-express-web.min.js"></script>
     <style>
     * {
         margin: 0;
@@ -635,17 +635,17 @@ async function initializeZegocloud() {
             // Check for various SDK export patterns
             if (typeof window.ZegoExpressEngine !== 'undefined') {
                 ZegoClass = window.ZegoExpressEngine;
-                console.log('Found ZegoExpressEngine');
+                console.log('✓ Found ZegoExpressEngine');
                 break;
             }
-            if (typeof window.zego !== 'undefined') {
-                ZegoClass = window.zego;
-                console.log('Found window.zego');
+            if (typeof window.ZegoExpressWeb !== 'undefined') {
+                ZegoClass = window.ZegoExpressWeb.ZegoExpressEngine;
+                console.log('✓ Found ZegoExpressWeb.ZegoExpressEngine');
                 break;
             }
-            if (window.ZegoExpressEngine) {
-                ZegoClass = window.ZegoExpressEngine;
-                console.log('Found ZegoExpressEngine via property access');
+            if (typeof window.zego !== 'undefined' && window.zego.ZegoExpressEngine) {
+                ZegoClass = window.zego.ZegoExpressEngine;
+                console.log('✓ Found window.zego.ZegoExpressEngine');
                 break;
             }
             
@@ -653,19 +653,24 @@ async function initializeZegocloud() {
             attempts++;
             
             if (attempts % 5 === 0) {
-                console.log(`SDK loading attempt ${attempts}... Available Zego globals:`, 
-                    Object.keys(window).filter(k => k.toLowerCase().includes('zego')));
+                const zegoGlobals = Object.keys(window).filter(k => k.toLowerCase().includes('zego'));
+                console.log(`SDK loading attempt ${attempts}... Zego globals found:`, zegoGlobals);
             }
         }
         
         if (!ZegoClass) {
             const zegoGlobals = Object.keys(window).filter(k => k.toLowerCase().includes('zego'));
             console.error('Available Zego globals:', zegoGlobals);
-            console.error('window keys sample:', Object.keys(window).slice(0, 20));
-            throw new Error(`Zegocloud SDK failed to load after 20 seconds. Found globals: ${zegoGlobals.join(', ')}`);
+            
+            // Debug: show structure of any zego-like globals
+            zegoGlobals.forEach(globalName => {
+                console.log(`${globalName}:`, window[globalName]);
+            });
+            
+            throw new Error(`Zegocloud SDK failed to load after 20 seconds. Available: ${zegoGlobals.join(', ')}`);
         }
         
-        console.log('Creating Zegocloud instance with AppID:', ZEGOCLOUD_APP_ID);
+        console.log('✓ Creating Zegocloud instance with AppID:', ZEGOCLOUD_APP_ID);
         zegoInstance = new ZegoClass(ZEGOCLOUD_APP_ID, ZEGOCLOUD_ACCESS_TOKEN);
         
         console.log('Zegocloud instance created successfully');
