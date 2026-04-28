@@ -6,7 +6,7 @@ from django.db.models import Q, Count
 from .models import Conversation, Message, VideoCall
 from appointments.models import Appointment
 from notifications.models import notify_new_message
-from .vonage_service import create_session, generate_token, get_api_key
+from .zegocloud_service import generate_access_token, generate_room_id, get_app_id
 import json
 import uuid
 import logging
@@ -52,24 +52,22 @@ def conversation_detail(request, conversation_id):
         if existing_call:
             return redirect('messaging:video_room', room_id=existing_call.room_id)
         
-        # Create new video call with Vonage session
+        # Create new video call with Zegocloud room
         try:
-            room_id = f"healthlink-{conversation.id}-{uuid.uuid4().hex[:8]}"
-            vonage_session_id = create_session()
+            room_id = generate_room_id(conversation.id)
             
             video_call = VideoCall.objects.create(
                 room_id=room_id,
                 conversation=conversation,
                 caller=request.user,
                 receiver=receiver,
-                status='initiated',
-                vonage_session_id=vonage_session_id
+                status='initiated'
             )
-            logger.info(f"Created video call {video_call.id} with Vonage session {vonage_session_id}")
+            logger.info(f"Created video call {video_call.id} with Zegocloud room {room_id}")
             return redirect('messaging:video_room', room_id=room_id)
         except Exception as e:
-            logger.error(f"Error creating Vonage session: {str(e)}")
-            # Fall back to creating call without session (will fail when joining)
+            logger.error(f"Error creating Zegocloud room: {str(e)}")
+            # Fall back to creating call without room setup
             room_id = f"healthlink-{conversation.id}-{uuid.uuid4().hex[:8]}"
             video_call = VideoCall.objects.create(
                 room_id=room_id,
@@ -414,51 +412,42 @@ def video_room(request, room_id):
     is_caller = request.user == video_call.caller
     logger.info(f"Is caller: {is_caller}")
     
-    # Generate Vonage token for this user
-    vonage_error = None
-    api_key = None
-    token = None
+    # Generate Zegocloud token for this user
+    zegocloud_error = None
+    app_id = None
+    access_token = None
     
     try:
-        # Check if Vonage is configured
-        api_key = get_api_key()
-        logger.info(f"Vonage API Key found: {api_key[:10] if api_key else 'MISSING'}...")
-        
-        # Create session if needed
-        if not video_call.vonage_session_id:
-            logger.info("Creating new Vonage session...")
-            video_call.vonage_session_id = create_session()
-            video_call.save()
-            logger.info(f"Session created: {video_call.vonage_session_id}")
+        # Check if Zegocloud is configured
+        app_id = get_app_id()
+        logger.info(f"Zegocloud App ID found: {app_id}...")
         
         # Generate token for this user
-        logger.info("Generating Vonage token...")
+        logger.info("Generating Zegocloud access token...")
         user_id = f"{request.user.id}_{request.user.username}"
-        token = generate_token(video_call.vonage_session_id, user_id=user_id)
-        logger.info(f"Token generated successfully")
+        token_data = generate_access_token(user_id, video_call.room_id, expiration_seconds=3600)
+        access_token = token_data['access_token']
+        logger.info(f"Token generated successfully for user {user_id}")
         
-    except ImportError as e:
-        error_msg = f"OpenTok library not installed: {str(e)}. Please install opentok package."
-        logger.error(error_msg)
-        vonage_error = error_msg
     except ValueError as e:
-        error_msg = f"Vonage not configured: {str(e)}"
+        error_msg = f"Zegocloud not configured: {str(e)}"
         logger.error(error_msg)
-        vonage_error = error_msg
+        zegocloud_error = error_msg
     except Exception as e:
-        error_msg = f"Error with Vonage: {str(e)}"
+        error_msg = f"Error with Zegocloud: {str(e)}"
         logger.error(error_msg)
-        vonage_error = error_msg
+        zegocloud_error = error_msg
     
     context = {
         'video_call': video_call,
         'conversation': conversation,
         'other_user': other_user,
         'is_caller': is_caller,
-        'vonage_api_key': api_key or '',
-        'vonage_session_id': video_call.vonage_session_id or '',
-        'vonage_token': token or '',
-        'vonage_error': vonage_error or '',
+        'zegocloud_app_id': app_id or '',
+        'zegocloud_room_id': video_call.room_id or '',
+        'zegocloud_access_token': access_token or '',
+        'zegocloud_user_id': f"{request.user.id}_{request.user.username}" or '',
+        'zegocloud_error': zegocloud_error or '',
         'user_display_name': request.user.get_full_name() or request.user.username
     }
     
