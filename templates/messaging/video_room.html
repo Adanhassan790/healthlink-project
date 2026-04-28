@@ -5,17 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Consultation - HealthLink</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Zegocloud SDK - Try local first, fallback to CDN -->
-    <!-- Local SDK (download from npm and place in /static/js/zegocloud/) -->
+    <!-- Zegocloud SDK: local file only -->
+    <!-- Place the real SDK at /static/js/zegocloud/zego-express-web.min.js -->
     <script src="/static/js/zegocloud/zego-express-web.min.js"></script>
-    <!-- Fallback: jsDelivr CDN if local not available -->
-    <script>
-        if (!window.ZegoExpressEngine && !window.ZegoExpressWeb) {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/zego-express-web-sdk@2.9.9/index.min.js';
-            document.head.appendChild(script);
-        }
-    </script>
     <style>
     * {
         margin: 0;
@@ -635,8 +627,8 @@ async function initializeZegocloud() {
     }
     
     try {
-        // Wait for Zegocloud SDK to load from Skypack CDN
-        console.log('Waiting for Zegocloud SDK to load from Skypack CDN...');
+        // Wait for the local Zegocloud SDK to load
+        console.log('Waiting for local Zegocloud SDK to load...');
         let attempts = 0;
         
         // Check if SDK has loaded with a longer timeout
@@ -664,18 +656,18 @@ async function initializeZegocloud() {
             
             if (attempts % 5 === 0) {
                 const zegoGlobals = Object.keys(window).filter(k => k.toLowerCase().includes('zego'));
-                console.log(`Attempt ${attempts}/50: Waiting for SDK... Found: ${zegoGlobals.join(', ')}`);
+                console.log(`Attempt ${attempts}/50: Waiting for local SDK... Found: ${zegoGlobals.join(', ')}`);
             }
         }
         
         if (!zegoInstance) {
-            // SDK failed to load - provide helpful error message
+            // Local SDK failed to load - provide helpful error message
             const zegoGlobals = Object.keys(window).filter(k => k.toLowerCase().includes('zego'));
             console.error('❌ Zegocloud SDK failed to load');
-            console.error('SOLUTION: Follow ZEGOCLOUD_LOCAL_SDK_SETUP.md in project root');
+            console.error('SOLUTION: Add the real SDK file at /static/js/zegocloud/zego-express-web.min.js');
             console.error('Steps:');
-            console.error('1. Download Zegocloud SDK: npm install zego-express-web-sdk@2.9.9');
-            console.error('2. Copy to: /static/js/zegocloud/zego-express-web.min.js');
+            console.error('1. Download the real Zegocloud SDK file');
+            console.error('2. Copy it to: /static/js/zegocloud/zego-express-web.min.js');
             console.error('3. Run: python manage.py collectstatic --noinput');
             console.error('4. Redeploy to Railway');
             console.error('Available Zego globals:', zegoGlobals);
