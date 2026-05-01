@@ -14,6 +14,12 @@ from .email_service import send_appointment_email, send_message_email, send_call
 logger = logging.getLogger(__name__)
 
 
+def should_send_email():
+    """Check if email notifications are enabled"""
+    return getattr(settings, 'SEND_EMAIL_NOTIFICATIONS', True)
+
+
+
 @receiver(pre_save, sender=Appointment)
 def appointment_pre_save(sender, instance, **kwargs):
     # Capture previous status for comparison in post_save
@@ -30,6 +36,8 @@ def appointment_pre_save(sender, instance, **kwargs):
 @receiver(post_save, sender=Appointment)
 def appointment_post_save(sender, instance, created, **kwargs):
     # Send emails on creation and status changes
+    if not should_send_email():
+        return
     try:
         patient = instance.patient
         doctor = instance.doctor
@@ -64,7 +72,7 @@ def appointment_post_save(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Message)
 def message_post_save(sender, instance, created, **kwargs):
     # Send email when a new message is created to the other participant
-    if not created:
+    if not created or not should_send_email():
         return
     try:
         conv = instance.conversation
@@ -100,6 +108,8 @@ def videocall_pre_save(sender, instance, **kwargs):
 
 @receiver(post_save, sender=VideoCall)
 def videocall_post_save(sender, instance, created, **kwargs):
+    if not should_send_email():
+        return
     try:
         caller = instance.caller
         receiver = instance.receiver

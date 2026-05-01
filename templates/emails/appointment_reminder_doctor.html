@@ -1,0 +1,8 @@
+<html>
+  <body>
+    <p>Hi Dr. {{ doctor.get_full_name }},</p>
+    <p>Reminder: You have an appointment with {{ patient.get_full_name }} at {{ appointment.appointment_date|date:"d/m/Y H:i" }}.</p>
+    <p>Login to your dashboard to prepare.</p>
+    <p>— HealthLink</p>
+  </body>
+</html>
