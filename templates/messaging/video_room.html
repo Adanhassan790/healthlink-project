@@ -35,6 +35,7 @@
         if (window.pako && !window.pako.default) {
             window.pako.default = window.pako;
         }
+    </script>
 
     <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
     <script>
@@ -587,21 +588,31 @@ const IS_DOCTOR = "{{ request.user.user_type }}" === "doctor";
 // State variables
 let zegoInstance = null;
 let localStream = null;
+let publishedStreamID = null;
 let callStartTime = null;
 let callTimerInterval = null;
 let audioEnabled = true;
 let videoEnabled = true;
+const ZEGOCLOUD_DEBUG = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-console.log('=== ZEGOCLOUD VIDEO CALL ===');
-console.log('App ID:', ZEGOCLOUD_APP_ID ? 'Present' : 'MISSING');
-console.log('Room ID:', ZEGOCLOUD_ROOM_ID ? 'Present' : 'MISSING');
-console.log('Access Token:', ZEGOCLOUD_ACCESS_TOKEN ? 'Present' : 'MISSING');
-console.log('User ID:', ZEGOCLOUD_USER_ID);
+function debugLog(...args) {
+    if (ZEGOCLOUD_DEBUG) {
+        console.log(...args);
+    }
+}
+
+let roomLoggedIn = false;
+let publishStarted = false;
+debugLog('=== ZEGOCLOUD VIDEO CALL ===');
+debugLog('App ID:', ZEGOCLOUD_APP_ID ? 'Present' : 'MISSING');
+debugLog('Room ID:', ZEGOCLOUD_ROOM_ID ? 'Present' : 'MISSING');
+debugLog('Access Token:', ZEGOCLOUD_ACCESS_TOKEN ? 'Present' : 'MISSING');
+debugLog('User ID:', ZEGOCLOUD_USER_ID);
 
 // Check for errors from backend
 if (ZEGOCLOUD_ERROR) {
-    console.error('Zegocloud Error:', ZEGOCLOUD_ERROR);
-    showError('Zegocloud setup failed: ' + ZEGOCLOUD_ERROR);
+    console.error('Zegocloud setup failed');
+    showError('Zegocloud setup failed. Please try again.');
 }
 
 // ===== CALL TIMER =====
@@ -633,7 +644,7 @@ function updateCallStatus(status) {
 
 // ===== ZEGOCLOUD EVENT HANDLERS =====
 async function onRemoteUserJoin(roomID, user) {
-    console.log('Remote user joined:', user.userID, user.userName);
+    debugLog('Remote user joined:', user.userID, user.userName);
     
     // Start playing remote user's stream
     const remoteVideosContainer = document.getElementById('zegocloud-remote-videos');
@@ -647,52 +658,50 @@ async function onRemoteUserJoin(roomID, user) {
         videoElement.style.height = '100%';
         remoteVideosContainer.appendChild(videoElement);
     }
-    
-    // Start playing remote stream
-    try {
-        await zegoInstance.startPlayingStream(user.streamID, {
-            audio: true,
-            video: videoElement
-        });
-        console.log('Playing stream for user:', user.userID);
-    } catch (error) {
-        console.error('Error playing stream:', error);
-    }
 }
 
-async function onRemoteUserLeave(roomID, user) {
-    console.log('Remote user left:', user.userID);
-    
-    // Stop playing stream
-    try {
-        await zegoInstance.stopPlayingStream(user.streamID);
-    } catch (error) {
-        console.error('Error stopping stream:', error);
+async function onRoomStreamUpdate(roomID, updateType, streamList, extendedData) {
+    debugLog('roomStreamUpdate', roomID, updateType, streamList, extendedData);
+    const remoteVideosContainer = document.getElementById('zegocloud-remote-videos');
+
+    if (updateType === 'ADD') {
+        for (const stream of streamList || []) {
+            try {
+                const remoteStream = await zegoInstance.startPlayingStream(stream.streamID);
+                const view = zegoInstance.createRemoteStreamView(remoteStream);
+                let container = document.getElementById(`video-${stream.userID || stream.streamID}`);
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = `video-${stream.userID || stream.streamID}`;
+                    container.className = 'video-stream';
+                    container.style.height = '100%';
+                    remoteVideosContainer.appendChild(container);
+                }
+                view.play(container);
+            } catch (err) {
+                console.error('Failed to play remote stream', stream && stream.streamID ? stream.streamID : 'unknown');
+            }
+        }
+    } else if (updateType === 'DELETE') {
+        for (const stream of streamList || []) {
+            try {
+                zegoInstance.stopPlayingStream(stream.streamID);
+                const container = document.getElementById(`video-${stream.userID || stream.streamID}`);
+                if (container) container.remove();
+            } catch (err) {
+                console.error('Failed to stop remote stream', stream && stream.streamID ? stream.streamID : 'unknown');
+            }
+        }
     }
-    
-    // Remove video element
-    const videoElement = document.getElementById(`video-${user.userID}`);
-    if (videoElement) {
-        videoElement.remove();
     }
+
+function onRemoteUserLeave(roomID, user) {
+    debugLog('Remote user left:', user && user.userID);
 }
 
-async function onStreamUpdated(roomID, streamID, streamList) {
-    console.log('Stream updated:', streamID);
+function onStreamUpdated(roomID, updateType, streamList) {
+    debugLog('onStreamUpdated', updateType, streamList);
 }
-
-// ===== CONTROL HANDLERS =====
-document.getElementById('audioToggle').addEventListener('click', () => {
-    if (!zegoInstance) return;
-    
-    audioEnabled = !audioEnabled;
-    zegoInstance.mutePublishingAudio(!audioEnabled);
-    
-    const btn = document.getElementById('audioToggle');
-    btn.classList.toggle('disabled', !audioEnabled);
-    btn.style.opacity = audioEnabled ? '1' : '0.5';
-    console.log('Audio:', audioEnabled ? 'enabled' : 'disabled');
-});
 
 document.getElementById('videoToggle').addEventListener('click', () => {
     if (!zegoInstance) return;
@@ -703,17 +712,17 @@ document.getElementById('videoToggle').addEventListener('click', () => {
     const btn = document.getElementById('videoToggle');
     btn.classList.toggle('disabled', !videoEnabled);
     btn.style.opacity = videoEnabled ? '1' : '0.5';
-    console.log('Video:', videoEnabled ? 'enabled' : 'disabled');
+    debugLog('Video:', videoEnabled ? 'enabled' : 'disabled');
 });
 
 document.getElementById('endCallBtn').addEventListener('click', () => {
-    console.log('End call button clicked');
+    debugLog('End call button clicked');
     endCallAndRedirect();
 });
 
 // ===== INITIALIZATION =====
 async function initializeZegocloud() {
-    console.log('Initializing Zegocloud...');
+    debugLog('Initializing Zegocloud...');
     updateCallStatus('connecting');
     
     if (!ZEGOCLOUD_APP_ID || !ZEGOCLOUD_ROOM_ID || !ZEGOCLOUD_ACCESS_TOKEN) {
@@ -723,7 +732,7 @@ async function initializeZegocloud() {
     
     try {
         // Wait for the local Zegocloud SDK to load
-        console.log('Waiting for local Zegocloud SDK to load...');
+        debugLog('Waiting for local Zegocloud SDK to load...');
         let attempts = 0;
         
         // Check if SDK has loaded with a longer timeout
@@ -740,11 +749,23 @@ async function initializeZegocloud() {
             }
             
             if (ZegoClass) {
-                console.log('✓ Zegocloud SDK loaded successfully');
-                console.log('✓ Creating Zegocloud instance with AppID:', ZEGOCLOUD_APP_ID);
+                debugLog('✓ Zegocloud SDK loaded successfully');
+                debugLog('✓ Creating Zegocloud instance with AppID:', ZEGOCLOUD_APP_ID);
                 // Create instance with app ID and scenario ID (0 for general, 1 for live streaming)
                 // Token is passed during loginRoom
                 zegoInstance = new ZegoClass(ZEGOCLOUD_APP_ID, 0);
+
+                if (ZEGOCLOUD_DEBUG) {
+                    try {
+                        const _events = ['roomStateChanged', 'roomStreamUpdate', 'publisherStateUpdate', 'streamExtraInfoUpdated', 'wsConnectionStateChanged', 'connectionStateChanged'];
+                        _events.forEach(ev => {
+                            try {
+                                zegoInstance.on(ev, (...args) => console.log('ZEGO_EVENT', ev, args));
+                            } catch (e) {}
+                        });
+                    } catch (e) { console.warn('Could not attach verbose SDK listeners', e); }
+                }
+
                 break;
             }
             
@@ -753,65 +774,112 @@ async function initializeZegocloud() {
             
             if (attempts % 5 === 0) {
                 const zegoGlobals = Object.keys(window).filter(k => k.toLowerCase().includes('zego'));
-                console.log(`Attempt ${attempts}/50: Waiting for local SDK... Found: ${zegoGlobals.join(', ')}`);
+                debugLog(`Attempt ${attempts}/50: Waiting for local SDK... Found: ${zegoGlobals.join(', ')}`);
             }
         }
         
         if (!zegoInstance) {
             // Local SDK failed to load - provide helpful error message
             const zegoGlobals = Object.keys(window).filter(k => k.toLowerCase().includes('zego'));
-            console.error('❌ Zegocloud SDK failed to load');
-            console.error('SOLUTION: Add the real SDK file at /static/js/zegocloud/zego-express-web.min.js');
-            console.error('Steps:');
-            console.error('1. Download the real Zegocloud SDK file');
-            console.error('2. Copy it to: /static/js/zegocloud/zego-express-web.min.js');
-            console.error('3. Run: python manage.py collectstatic --noinput');
-            console.error('4. Redeploy to Railway');
-            console.error('Available Zego globals:', zegoGlobals);
+            console.error('Zegocloud SDK failed to load');
+            if (ZEGOCLOUD_DEBUG) {
+                console.error('SOLUTION: Add the real SDK file at /static/js/zegocloud/zego-express-web.min.js');
+                console.error('Steps:');
+                console.error('1. Download the real Zegocloud SDK file');
+                console.error('2. Copy it to: /static/js/zegocloud/zego-express-web.min.js');
+                console.error('3. Run: python manage.py collectstatic --noinput');
+                console.error('4. Redeploy to Railway');
+                console.error('Available Zego globals:', zegoGlobals);
+            }
             throw new Error('Zegocloud SDK not loaded. Please set up local SDK hosting. See ZEGOCLOUD_LOCAL_SDK_SETUP.md for instructions.');
         }
         
-        console.log('✓ Zegocloud instance created');
+        debugLog('✓ Zegocloud instance created');
+        debugLog('SDK methods available:', Object.getOwnPropertyNames(Object.getPrototypeOf(zegoInstance)).filter(m => !m.startsWith('_')).slice(0, 20));
         
-        // Set up event listeners
-        zegoInstance.on('onRemoteUserJoin', onRemoteUserJoin);
-        zegoInstance.on('onRemoteUserLeave', onRemoteUserLeave);
-        zegoInstance.on('onStreamUpdated', onStreamUpdated);
-        
-        // Login to room
-        console.log('Logging in to room:', ZEGOCLOUD_ROOM_ID);
-        await zegoInstance.loginRoom(
-            ZEGOCLOUD_ROOM_ID,
-            ZEGOCLOUD_ACCESS_TOKEN,
-            { userID: ZEGOCLOUD_USER_ID, userName: USER_NAME }
-        );
-        
-        console.log('✓ Logged in to room');
-        updateCallStatus('connected');
-        
-        // Start local stream
-        const localVideoContainer = document.getElementById('zegocloud-local-video');
-        console.log('Creating local stream...');
-        localStream = await zegoInstance.createStream({
-            video: { width: 1280, height: 720 },
-            audio: true,
-            videoSource: 'camera',
-            audioSource: 'mic'
-        });
-        
-        console.log('✓ Local stream created');
-        
-        // Publish local stream
-        await zegoInstance.startPublishingStream(localStream);
-        
-        // Display local video
-        localVideoContainer.innerHTML = '';
-        localStream.play(localVideoContainer);
-        
-        console.log('✓ Publishing stream');
-        updateCallStatus('active');
-        startCallTimer();
-        document.getElementById('loadingOverlay').classList.add('hidden');
+            // Helper to create local stream and publish (used after successful login)
+            async function startLocalStreamAndPublish() {
+                if (publishStarted) return;
+                publishStarted = true;
+                try {
+                    const localVideoContainer = document.getElementById('zegocloud-local-video');
+                    debugLog('Creating local ZEGO stream (deferred until LOGINED)...');
+                    const createStream = zegoInstance.createZegoStream || zegoInstance.createStream;
+                    if (!createStream) {
+                        throw new Error('SDK does not expose createZegoStream/createStream');
+                    }
+                    localStream = await createStream.call(zegoInstance);
+
+                    debugLog('✓ Local ZEGO stream acquired');
+                    debugLog('Local stream type:', localStream && localStream.constructor ? localStream.constructor.name : typeof localStream);
+
+                    const streamID = `${ZEGOCLOUD_USER_ID}_${Date.now()}`;
+                    debugLog('Publishing stream with streamID:', streamID);
+                    // small delay to ensure local stream and internal SDK state are ready
+                    await new Promise(r => setTimeout(r, 500));
+                    try {
+                        // Try calling with just the streamID first (some SDK versions expect this)
+                        await zegoInstance.startPublishingStream(streamID, localStream);
+                    } catch (publishErr) {
+                        console.warn('startPublishingStream(streamID, localStream) failed');
+                        throw publishErr;
+                    }
+
+                    publishedStreamID = streamID;
+
+                    // Display local video
+                    localVideoContainer.innerHTML = '';
+                    if (typeof localStream.playVideo === 'function') {
+                        localStream.playVideo(localVideoContainer);
+                    } else if (typeof localStream.play === 'function') {
+                        localStream.play(localVideoContainer);
+                    } else if (localVideoContainer.tagName === 'VIDEO') {
+                        localVideoContainer.srcObject = localStream;
+                        localVideoContainer.play().catch(() => {});
+                    }
+
+                    debugLog('✓ Publishing stream');
+                    updateCallStatus('active');
+                    startCallTimer();
+                    document.getElementById('loadingOverlay').classList.add('hidden');
+                } catch (err) {
+                    console.error('Failed to start local stream');
+                    showError('Failed to start the call. Please refresh and try again.');
+                }
+            }
+
+            // Set up event listeners
+            zegoInstance.on('onRemoteUserJoin', onRemoteUserJoin);
+            zegoInstance.on('onRemoteUserLeave', onRemoteUserLeave);
+            zegoInstance.on('roomStreamUpdate', onRoomStreamUpdate);
+            zegoInstance.on('roomStateChanged', async (roomID, reason, errorCode, extendedData) => {
+                debugLog('roomStateChanged', roomID, reason, errorCode, extendedData);
+                if (reason === 'LOGINED' || reason === 'RECONNECTED') {
+                    roomLoggedIn = true;
+                    if (!publishStarted) {
+                        await startLocalStreamAndPublish();
+                    }
+                } else if (reason === 'LOGIN_FAILED') {
+                    showError('Login to room failed.');
+                }
+            });
+
+            // Login to room
+            debugLog('Logging in to room:', ZEGOCLOUD_ROOM_ID);
+            await zegoInstance.loginRoom(
+                ZEGOCLOUD_ROOM_ID,
+                ZEGOCLOUD_ACCESS_TOKEN,
+                { userID: ZEGOCLOUD_USER_ID, userName: USER_NAME },
+                { userUpdate: true }
+            );
+
+            debugLog('✓ Logged in to room');
+            updateCallStatus('connected');
+
+            // Ensure publishing after login if not already started
+            if (!publishStarted) {
+                await startLocalStreamAndPublish();
+            }
         
     } catch (error) {
         console.error('Zegocloud initialization error:', error);
@@ -821,7 +889,7 @@ async function initializeZegocloud() {
 
 // ===== CALL ENDING =====
 async function endCallAndRedirect() {
-    console.log('Ending call...');
+    debugLog('Ending call...');
     
     // Stop timer
     if (callTimerInterval) {
@@ -835,9 +903,9 @@ async function endCallAndRedirect() {
             headers: { 'X-CSRFToken': CSRF_TOKEN },
             credentials: 'same-origin'
         });
-        console.log('Call end response:', response.status);
+        debugLog('Call end response:', response.status);
     } catch (e) {
-        console.error('Error ending call on server:', e);
+        console.error('Error ending call on server');
     }
     
     // Clean up
@@ -850,7 +918,7 @@ async function endCallAndRedirect() {
 }
 
 function cleanup() {
-    console.log('Cleaning up...');
+    debugLog('Cleaning up...');
     
     try {
         // Stop publishing stream
@@ -866,21 +934,22 @@ function cleanup() {
             zegoInstance = null;
         }
     } catch (error) {
-        console.error('Cleanup error:', error);
+        console.error('Cleanup error');
     }
     
-    console.log('Cleanup complete');
+    debugLog('Cleanup complete');
 }
 
 // ===== ERROR DISPLAY =====
 function showError(message) {
     const overlay = document.getElementById('loadingOverlay');
     overlay.classList.add('error-overlay');
+    const displayMessage = ZEGOCLOUD_DEBUG ? message : 'Please refresh the page or return to chat.';
     overlay.innerHTML = `
         <div class="loading-content">
             <i class="fas fa-exclamation-circle"></i>
             <h3>Video Consultation Error</h3>
-            <p style="color: rgba(255,255,255,0.7); margin: 15px 0;">${message}</p>
+            <p style="color: rgba(255,255,255,0.7); margin: 15px 0;">${displayMessage}</p>
             <a href="/messaging/conversation/${CONVERSATION_ID}/" 
                style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; border-radius: 8px; text-decoration: none; margin-top: 20px; font-weight: 600;">
                 <i class="fas fa-arrow-left me-2"></i> Back to Chat

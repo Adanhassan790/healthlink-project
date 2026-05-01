@@ -57,7 +57,7 @@ def generate_access_token(user_id, session_id, expiration_seconds=3600):
             "user_id": user_id,
             "nonce": nonce,
             "ctime": ctime,
-            "expire": expiration_seconds,
+            "expire": expire_time,
         }
 
         iv = _generate_iv()
@@ -123,7 +123,7 @@ def _encrypt_prebuilt_token_body(body: dict, server_secret: str, iv: str) -> byt
 
 def _assemble_prebuilt_token(expire_time: int, iv: str, ciphertext: bytes) -> str:
     """Build the base64-encoded Zego prebuilt token envelope."""
-    expire_bytes = expire_time.to_bytes(4, byteorder="big", signed=False)
+    expire_bytes = expire_time.to_bytes(4, byteorder="little", signed=False)
     iv_bytes = iv.encode("utf-8")
     ciphertext_length = len(ciphertext).to_bytes(2, byteorder="big", signed=False)
     envelope = bytearray(8 + 2 + 16 + 2 + len(ciphertext))
