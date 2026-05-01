@@ -29,10 +29,6 @@ logger = logging.getLogger(__name__)
 
 def patient_register(request):
     # Direct file write to test if view is being called
-    with open('/tmp/patient_register_test.log', 'a') as f:
-        f.write(f"\n=== PATIENT REGISTER CALLED ===\n")
-        f.write(f"Method: {request.method}\n")
-        f.write(f"POST keys: {list(request.POST.keys())}\n")
     
     logger.warning("=" * 70)
     logger.warning("PATIENT REGISTRATION - START")
@@ -89,10 +85,6 @@ def patient_register(request):
 
 def doctor_register(request):
     # Direct file write to test if view is being called
-    with open('/tmp/doctor_register_test.log', 'a') as f:
-        f.write(f"\n=== DOCTOR REGISTER CALLED ===\n")
-        f.write(f"Method: {request.method}\n")
-        f.write(f"POST keys: {list(request.POST.keys())}\n")
     
     logger.warning("=" * 70)
     logger.warning("DOCTOR REGISTRATION - START")

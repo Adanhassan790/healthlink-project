@@ -3,12 +3,15 @@ Zegocloud Video API Service
 Handles token generation for Zegocloud video calls
 """
 
-import os
-import logging
-import time
-import hashlib
 import base64
-from datetime import datetime, timedelta
+import json
+import logging
+import os
+import secrets
+import time
+
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.padding import PKCS7
 
 logger = logging.getLogger(__name__)
 
@@ -42,23 +45,24 @@ def generate_access_token(user_id, session_id, expiration_seconds=3600):
         raise ValueError("Zegocloud API not configured. Set ZEGOCLOUD_APP_ID and ZEGOCLOUD_SERVER_SECRET environment variables.")
     
     try:
-        # Convert expiration_seconds to integer if needed
         expiration_seconds = int(expiration_seconds)
-        
-        # Generate token
-        # Token format: base64(appId:userId:ctime:nonce:signature)
+
         app_id = int(ZEGOCLOUD_APP_ID)
         ctime = int(time.time())
-        nonce = int(time.time() * 1000) % 2147483647  # Use timestamp as nonce
-        
-        # Create signature: sha256(serverSecret + userId + ctime + nonce + expiration_seconds)
-        signature_source = f"{ZEGOCLOUD_SERVER_SECRET}{user_id}{ctime}{nonce}{expiration_seconds}"
-        signature = hashlib.sha256(signature_source.encode()).digest()
-        signature_base64 = base64.b64encode(signature).decode()
-        
-        # Build token
-        token_parts = f"{app_id}:{user_id}:{ctime}:{nonce}:{signature_base64}"
-        access_token = base64.b64encode(token_parts.encode()).decode()
+        expire_time = ctime + expiration_seconds
+        nonce = secrets.randbelow(2147483647)
+
+        body = {
+            "app_id": app_id,
+            "user_id": user_id,
+            "nonce": nonce,
+            "ctime": ctime,
+            "expire": expiration_seconds,
+        }
+
+        iv = _generate_iv()
+        ciphertext = _encrypt_prebuilt_token_body(body, ZEGOCLOUD_SERVER_SECRET, iv)
+        access_token = _assemble_prebuilt_token(expire_time, iv, ciphertext)
         
         logger.info(f"Generated Zegocloud token for user {user_id}, room {session_id}")
         
@@ -94,6 +98,42 @@ def get_app_id():
     if not ZEGOCLOUD_APP_ID:
         raise ValueError("Zegocloud App ID not configured.")
     return int(ZEGOCLOUD_APP_ID)
+
+
+def _generate_iv() -> str:
+    """Return a 16-character ASCII IV string."""
+    alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
+    return "".join(secrets.choice(alphabet) for _ in range(16))
+
+
+def _encrypt_prebuilt_token_body(body: dict, server_secret: str, iv: str) -> bytes:
+    """Encrypt the token body with AES-CBC and PKCS7 padding."""
+    key = server_secret.encode("utf-8")
+    if len(key) not in (16, 24, 32):
+        raise ValueError("Zegocloud server secret must be 16, 24, or 32 bytes long.")
+
+    payload = json.dumps(body, separators=(",", ":")).encode("utf-8")
+    padder = PKCS7(algorithms.AES.block_size).padder()
+    padded_payload = padder.update(payload) + padder.finalize()
+
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv.encode("utf-8")))
+    encryptor = cipher.encryptor()
+    return encryptor.update(padded_payload) + encryptor.finalize()
+
+
+def _assemble_prebuilt_token(expire_time: int, iv: str, ciphertext: bytes) -> str:
+    """Build the base64-encoded Zego prebuilt token envelope."""
+    expire_bytes = expire_time.to_bytes(4, byteorder="big", signed=False)
+    iv_bytes = iv.encode("utf-8")
+    ciphertext_length = len(ciphertext).to_bytes(2, byteorder="big", signed=False)
+    envelope = bytearray(8 + 2 + 16 + 2 + len(ciphertext))
+    envelope[0:4] = b"\x00\x00\x00\x00"
+    envelope[4:8] = expire_bytes
+    envelope[8:10] = len(iv_bytes).to_bytes(2, byteorder="big", signed=False)
+    envelope[10:26] = iv_bytes
+    envelope[26:28] = ciphertext_length
+    envelope[28:28 + len(ciphertext)] = ciphertext
+    return "04" + base64.b64encode(bytes(envelope)).decode("ascii")
 
 
 def verify_zegocloud_setup():

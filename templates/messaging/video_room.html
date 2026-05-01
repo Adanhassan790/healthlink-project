@@ -6,7 +6,102 @@
     <title>Video Consultation - HealthLink</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Zegocloud SDK: local file only -->
-    <!-- Place the real SDK at /static/js/zegocloud/zego-express-web.min.js -->
+    <!-- The bundled SDK expects browser globals for its dependencies. -->
+    <script src="/static/js/zegocloud/vendor/long.min.js"></script>
+    <script>
+        window.long = window.long || window.Long;
+        if (window.long && !window.long.default) {
+            window.long.default = window.long;
+        }
+    </script>
+    <script src="/static/js/zegocloud/vendor/protobuf.min.js"></script>
+    <script>
+        window.protobuf = window.protobuf || window.protobufjs || window.protobufjsLight;
+        window.protobufjs = window.protobufjs || window.protobuf || window.protobufjsLight;
+        window["protobufjs/minimal"] = window["protobufjs/minimal"] || window.protobufjs;
+
+        if (window.protobufjs && !window.protobufjs.default) {
+            window.protobufjs.default = window.protobufjs;
+        }
+    </script>
+    <script src="/static/js/zegocloud/vendor/localforage.min.js"></script>
+    <script>
+        window.localforage = window.localforage || window.LocalForage;
+        if (window.localforage && !window.localforage.default) {
+            window.localforage.default = window.localforage;
+        }
+
+        window.pako = window.pako || window.Pako;
+        if (window.pako && !window.pako.default) {
+            window.pako.default = window.pako;
+        }
+
+    <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
+    <script>
+        if (window.pako && !window.pako.default) {
+            window.pako.default = window.pako;
+        }
+    </script>
+    <script src="/static/js/zegocloud/vendor/zego-express-logger.js"></script>
+    <script>
+        class ZegoExpressLoggerShim {
+            debug() {}
+            info() {}
+            warn() {}
+            error() {}
+            log() {}
+        }
+
+        class ZegoDataReportShim {
+            static getInstance() {
+                if (!window.__zegoDataReportInstance) {
+                    window.__zegoDataReportInstance = new ZegoDataReportShim();
+                }
+                return window.__zegoDataReportInstance;
+            }
+
+            setConfig() {}
+            report() {}
+            log() {}
+        }
+
+        class LoggerStateCenterShim {
+            static getInstance() {
+                if (!window.__zegoLoggerStateCenterInstance) {
+                    window.__zegoLoggerStateCenterInstance = new LoggerStateCenterShim();
+                }
+                return window.__zegoLoggerStateCenterInstance;
+            }
+
+            setLogLevel() {}
+            setLogDir() {}
+            setConfig() {}
+            setReportConfig() {}
+            debug() {}
+            info() {}
+            warn() {}
+            error() {}
+            log() {}
+        }
+
+        const zegoLoggerModule = window.ZegoLogger ? window.zegoExpressLogger || window["zego-express-logger"] || {
+            ZegoLogger: window.ZegoLogger,
+            ZegoDataReport: window.ZegoDataReport || ZegoDataReportShim,
+            createZegoWebSocket: window.createZegoWebSocket || (() => null),
+            LoggerStateCenter: window.LoggerStateCenter || LoggerStateCenterShim,
+            default: window.ZegoLogger
+        } : {
+            ZegoLogger: ZegoExpressLoggerShim,
+            ZegoDataReport: ZegoDataReportShim,
+            createZegoWebSocket: () => null,
+            LoggerStateCenter: LoggerStateCenterShim,
+            default: ZegoExpressLoggerShim
+        };
+
+        window.ZegoLogger = window.ZegoLogger || ZegoExpressLoggerShim;
+        window.zegoExpressLogger = window.zegoExpressLogger || zegoLoggerModule;
+        window["zego-express-logger"] = window["zego-express-logger"] || zegoLoggerModule;
+    </script>
     <script src="/static/js/zegocloud/zego-express-web.min.js"></script>
     <style>
     * {
@@ -647,7 +742,9 @@ async function initializeZegocloud() {
             if (ZegoClass) {
                 console.log('✓ Zegocloud SDK loaded successfully');
                 console.log('✓ Creating Zegocloud instance with AppID:', ZEGOCLOUD_APP_ID);
-                zegoInstance = new ZegoClass(ZEGOCLOUD_APP_ID, ZEGOCLOUD_ACCESS_TOKEN);
+                // Create instance with app ID and scenario ID (0 for general, 1 for live streaming)
+                // Token is passed during loginRoom
+                zegoInstance = new ZegoClass(ZEGOCLOUD_APP_ID, 0);
                 break;
             }
             
@@ -685,7 +782,7 @@ async function initializeZegocloud() {
         console.log('Logging in to room:', ZEGOCLOUD_ROOM_ID);
         await zegoInstance.loginRoom(
             ZEGOCLOUD_ROOM_ID,
-            ZEGOCLOUD_USER_ID,
+            ZEGOCLOUD_ACCESS_TOKEN,
             { userID: ZEGOCLOUD_USER_ID, userName: USER_NAME }
         );
         
@@ -718,7 +815,7 @@ async function initializeZegocloud() {
         
     } catch (error) {
         console.error('Zegocloud initialization error:', error);
-        showError('Initialization error: ' + error.message);
+        showError('Initialization error: ' + formatSdkError(error));
     }
 }
 
@@ -790,6 +887,18 @@ function showError(message) {
             </a>
         </div>
     `;
+}
+
+function formatSdkError(error) {
+    if (typeof error === 'string') {
+        return error;
+    }
+
+    if (error && typeof error === 'object') {
+        return error.message || error.msg || error.code || JSON.stringify(error);
+    }
+
+    return 'Unknown error';
 }
 
 // ===== PAGE LIFECYCLE =====
