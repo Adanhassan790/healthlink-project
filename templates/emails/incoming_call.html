@@ -1,0 +1,8 @@
+<html>
+  <body>
+    <p>Hi {{ receiver.get_full_name }},</p>
+    <p>{{ caller.get_full_name }} is calling you for a video consultation.</p>
+    <p>Open HealthLink to answer the call: <a href="{{ request.scheme }}://{{ request.get_host }}">HealthLink</a></p>
+    <p>— HealthLink</p>
+  </body>
+</html>

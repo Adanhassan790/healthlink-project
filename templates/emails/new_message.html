@@ -1,0 +1,9 @@
+<html>
+  <body>
+    <p>Hi {{ recipient.get_full_name }},</p>
+    <p>You have a new message from {{ sender.get_full_name }}:</p>
+    <blockquote>{{ message.content }}</blockquote>
+    <p>Open the conversation to reply.</p>
+    <p>— HealthLink</p>
+  </body>
+</html>
