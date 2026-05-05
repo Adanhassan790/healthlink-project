@@ -1,11 +1,11 @@
 """
-Startup app for running migrations and initial data setup on app initialization.
-This ensures migrations run whenever Django starts, regardless of entry point.
+Startup app for application bootstrapping.
+
+This app should stay lightweight. Database migrations and sample-data loading
+must be run explicitly during deployment, not inside AppConfig.ready().
 """
 from django.apps import AppConfig
-from django.core.management import call_command
 import logging
-import os
 
 logger = logging.getLogger(__name__)
 
@@ -33,39 +33,5 @@ class StartupAppConfig(AppConfig):
     verbose_name = "Application Startup"
 
     def ready(self):
-        """Run migrations and populate initial data when app is ready"""
-        # Disable email notifications during startup to prevent timeouts
-        os.environ['SEND_EMAIL_NOTIFICATIONS'] = 'False'
-        
-        logger.info("=" * 70)
-        logger.info("STARTUP: Running database migrations...")
-        logger.info("=" * 70)
-        
-        try:
-            # Run migrations silently if they're already applied
-            call_command('migrate', verbosity=2, interactive=False)
-            logger.info("=" * 70)
-            logger.info("STARTUP: Migrations completed successfully!")
-            logger.info("=" * 70)
-            
-            # Create admin user
-            logger.info("")
-            logger.info("STARTUP: Creating admin user if needed...")
-            create_admin_user_if_not_exists()
-            
-            # Populate sample doctors if database is empty
-            logger.info("STARTUP: Populating sample data...")
-            call_command('populate_doctors', verbosity=1)
-            logger.info("STARTUP: Sample data populated!")
-            
-        except Exception as e:
-            logger.error(f"STARTUP: Failed during initialization: {str(e)}")
-            # Don't exit, let Django continue but log the error
-            import traceback
-            logger.error(traceback.format_exc())
-        finally:
-            # Re-enable email notifications after startup
-            # Settings will read from env vars or defaults
-            from django.conf import settings
-            if hasattr(settings, 'SEND_EMAIL_NOTIFICATIONS'):
-                logger.info("STARTUP: Email notifications re-enabled after startup phase")
+        """Keep app startup lightweight to avoid blocking the worker."""
+        logger.info("STARTUP: Startup app ready; database setup is handled externally.")
