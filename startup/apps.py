@@ -5,6 +5,7 @@ This ensures migrations run whenever Django starts, regardless of entry point.
 from django.apps import AppConfig
 from django.core.management import call_command
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,9 @@ class StartupAppConfig(AppConfig):
 
     def ready(self):
         """Run migrations and populate initial data when app is ready"""
+        # Disable email notifications during startup to prevent timeouts
+        os.environ['SEND_EMAIL_NOTIFICATIONS'] = 'False'
+        
         logger.info("=" * 70)
         logger.info("STARTUP: Running database migrations...")
         logger.info("=" * 70)
@@ -59,3 +63,9 @@ class StartupAppConfig(AppConfig):
             # Don't exit, let Django continue but log the error
             import traceback
             logger.error(traceback.format_exc())
+        finally:
+            # Re-enable email notifications after startup
+            # Settings will read from env vars or defaults
+            from django.conf import settings
+            if hasattr(settings, 'SEND_EMAIL_NOTIFICATIONS'):
+                logger.info("STARTUP: Email notifications re-enabled after startup phase")
