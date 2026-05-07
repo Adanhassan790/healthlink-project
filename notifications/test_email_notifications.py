@@ -2,6 +2,8 @@
 Unit tests for email notification signals and email service.
 Tests appointment, message, and video call notifications.
 """
+from unittest.mock import MagicMock, patch
+
 from django.test import TestCase, override_settings
 from django.core import mail
 from django.utils import timezone
@@ -13,16 +15,22 @@ from messaging.models import Conversation, Message, VideoCall
 from notifications.email_service import send_email
 
 
+TEST_EMAIL_SETTINGS = {
+    'EMAIL_BACKEND': 'django.core.mail.backends.locmem.EmailBackend',
+    'SEND_EMAIL_NOTIFICATIONS': True,
+    'DEFAULT_FROM_EMAIL': 'test@healthlink.local',
+    'EMAIL_PROVIDER': 'django',
+    'EMAIL_SEND_ASYNC': False,
+    'SENDGRID_API_KEY': '',
+}
+
+
 class EmailServiceTestCase(TestCase):
     """Test basic email sending functionality"""
 
     def test_send_email_basic(self):
         """Test sending a simple email"""
-        with override_settings(
-            EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-            SEND_EMAIL_NOTIFICATIONS=True,
-            DEFAULT_FROM_EMAIL='test@healthlink.local'
-        ):
+        with override_settings(**TEST_EMAIL_SETTINGS):
             success, error = send_email(
                 subject='Test Subject',
                 to_email='recipient@example.com',
@@ -36,11 +44,7 @@ class EmailServiceTestCase(TestCase):
 
     def test_send_email_html_template(self):
         """Test sending email with HTML template"""
-        with override_settings(
-            EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-            SEND_EMAIL_NOTIFICATIONS=True,
-            DEFAULT_FROM_EMAIL='test@healthlink.local'
-        ):
+        with override_settings(**TEST_EMAIL_SETTINGS):
             success, error = send_email(
                 subject='HTML Test',
                 to_email='user@example.com',
@@ -53,11 +57,7 @@ class EmailServiceTestCase(TestCase):
 
     def test_send_email_multiple_recipients(self):
         """Test sending to multiple recipients"""
-        with override_settings(
-            EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-            SEND_EMAIL_NOTIFICATIONS=True,
-            DEFAULT_FROM_EMAIL='test@healthlink.local'
-        ):
+        with override_settings(**TEST_EMAIL_SETTINGS):
             recipients = ['user1@example.com', 'user2@example.com']
             success, error = send_email(
                 subject='Bulk Email',
@@ -67,6 +67,49 @@ class EmailServiceTestCase(TestCase):
             self.assertTrue(success)
             self.assertEqual(len(mail.outbox), 1)
             self.assertEqual(set(mail.outbox[0].to), set(recipients))
+
+    @patch('notifications.email_service.requests.post')
+    def test_send_email_sendgrid_api(self, mock_post):
+        """Test SendGrid API payload and success path"""
+        mock_response = MagicMock(status_code=202, text='Accepted')
+        mock_post.return_value = mock_response
+
+        sendgrid_settings = dict(TEST_EMAIL_SETTINGS)
+        sendgrid_settings['EMAIL_PROVIDER'] = 'sendgrid'
+        sendgrid_settings['SENDGRID_API_KEY'] = 'SG.test-key'
+
+        with override_settings(**sendgrid_settings):
+            success, error = send_email(
+                subject='SendGrid Test',
+                to_email='recipient@example.com',
+                text_body='SendGrid body',
+            )
+
+        self.assertTrue(success)
+        self.assertIsNone(error)
+        mock_post.assert_called_once()
+
+    @patch('notifications.email_service._EMAIL_EXECUTOR.submit')
+    def test_send_email_async_queues_job(self, mock_submit):
+        """Test async dispatch queues work instead of sending inline"""
+        mock_future = MagicMock()
+        mock_future.add_done_callback.return_value = None
+        mock_submit.return_value = mock_future
+
+        async_settings = dict(TEST_EMAIL_SETTINGS)
+        async_settings['EMAIL_SEND_ASYNC'] = True
+
+        with override_settings(**async_settings):
+            success, result = send_email(
+                subject='Async Test',
+                to_email='recipient@example.com',
+                text_body='Queued body',
+                async_send=True,
+            )
+
+        self.assertTrue(success)
+        self.assertEqual(result, 'queued')
+        mock_submit.assert_called_once()
 
 
 
@@ -94,11 +137,7 @@ class AppointmentEmailSignalsTestCase(TestCase):
 
     def test_appointment_created_signal(self):
         """Test emails sent when appointment is created"""
-        with override_settings(
-            EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-            SEND_EMAIL_NOTIFICATIONS=True,
-            DEFAULT_FROM_EMAIL='test@healthlink.local'
-        ):
+        with override_settings(**TEST_EMAIL_SETTINGS):
             appointment = Appointment.objects.create(
                 patient=self.patient,
                 doctor=self.doctor,
@@ -115,11 +154,7 @@ class AppointmentEmailSignalsTestCase(TestCase):
 
     def test_appointment_status_confirmed_signal(self):
         """Test emails sent when appointment is confirmed"""
-        with override_settings(
-            EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-            SEND_EMAIL_NOTIFICATIONS=True,
-            DEFAULT_FROM_EMAIL='test@healthlink.local'
-        ):
+        with override_settings(**TEST_EMAIL_SETTINGS):
             appointment = Appointment.objects.create(
                 patient=self.patient,
                 doctor=self.doctor,
@@ -141,11 +176,7 @@ class AppointmentEmailSignalsTestCase(TestCase):
 
     def test_appointment_status_cancelled_signal(self):
         """Test emails sent when appointment is cancelled"""
-        with override_settings(
-            EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-            SEND_EMAIL_NOTIFICATIONS=True,
-            DEFAULT_FROM_EMAIL='test@healthlink.local'
-        ):
+        with override_settings(**TEST_EMAIL_SETTINGS):
             appointment = Appointment.objects.create(
                 patient=self.patient,
                 doctor=self.doctor,
@@ -211,11 +242,7 @@ class MessageEmailSignalsTestCase(TestCase):
 
     def test_new_message_signal(self):
         """Test email sent when new message is created"""
-        with override_settings(
-            EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-            SEND_EMAIL_NOTIFICATIONS=True,
-            DEFAULT_FROM_EMAIL='test@healthlink.local'
-        ):
+        with override_settings(**TEST_EMAIL_SETTINGS):
             message = Message.objects.create(
                 conversation=self.conversation,
                 sender=self.patient,
@@ -229,11 +256,7 @@ class MessageEmailSignalsTestCase(TestCase):
 
     def test_message_from_doctor(self):
         """Test email sent when doctor sends message"""
-        with override_settings(
-            EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-            SEND_EMAIL_NOTIFICATIONS=True,
-            DEFAULT_FROM_EMAIL='test@healthlink.local'
-        ):
+        with override_settings(**TEST_EMAIL_SETTINGS):
             message = Message.objects.create(
                 conversation=self.conversation,
                 sender=self.doctor,
@@ -270,11 +293,7 @@ class VideoCallEmailSignalsTestCase(TestCase):
 
     def test_incoming_call_signal(self):
         """Test email sent when video call is initiated"""
-        with override_settings(
-            EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-            SEND_EMAIL_NOTIFICATIONS=True,
-            DEFAULT_FROM_EMAIL='test@healthlink.local'
-        ):
+        with override_settings(**TEST_EMAIL_SETTINGS):
             call = VideoCall.objects.create(
                 conversation=self.conversation,
                 caller=self.patient,
@@ -289,11 +308,7 @@ class VideoCallEmailSignalsTestCase(TestCase):
 
     def test_call_status_ongoing_signal(self):
         """Test emails sent when call status changes to ongoing"""
-        with override_settings(
-            EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-            SEND_EMAIL_NOTIFICATIONS=True,
-            DEFAULT_FROM_EMAIL='test@healthlink.local'
-        ):
+        with override_settings(**TEST_EMAIL_SETTINGS):
             call = VideoCall.objects.create(
                 conversation=self.conversation,
                 caller=self.patient,
@@ -314,11 +329,7 @@ class VideoCallEmailSignalsTestCase(TestCase):
 
     def test_call_status_ended_signal(self):
         """Test emails sent when call ends"""
-        with override_settings(
-            EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-            SEND_EMAIL_NOTIFICATIONS=True,
-            DEFAULT_FROM_EMAIL='test@healthlink.local'
-        ):
+        with override_settings(**TEST_EMAIL_SETTINGS):
             call = VideoCall.objects.create(
                 conversation=self.conversation,
                 caller=self.patient,
@@ -340,11 +351,7 @@ class VideoCallEmailSignalsTestCase(TestCase):
 
     def test_call_status_missed_signal(self):
         """Test emails sent when call is missed"""
-        with override_settings(
-            EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-            SEND_EMAIL_NOTIFICATIONS=True,
-            DEFAULT_FROM_EMAIL='test@healthlink.local'
-        ):
+        with override_settings(**TEST_EMAIL_SETTINGS):
             call = VideoCall.objects.create(
                 conversation=self.conversation,
                 caller=self.patient,
@@ -362,11 +369,7 @@ class VideoCallEmailSignalsTestCase(TestCase):
 
     def test_call_status_declined_signal(self):
         """Test emails sent when call is declined"""
-        with override_settings(
-            EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-            SEND_EMAIL_NOTIFICATIONS=True,
-            DEFAULT_FROM_EMAIL='test@healthlink.local'
-        ):
+        with override_settings(**TEST_EMAIL_SETTINGS):
             call = VideoCall.objects.create(
                 conversation=self.conversation,
                 caller=self.patient,

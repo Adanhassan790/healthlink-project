@@ -173,6 +173,14 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False') == 'True'
+SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
+EMAIL_PROVIDER = os.getenv(
+    'EMAIL_PROVIDER',
+    'sendgrid' if (not DEBUG and SENDGRID_API_KEY) else 'django',
+).strip().lower()
+EMAIL_SEND_ASYNC = os.getenv('EMAIL_SEND_ASYNC', 'False' if DEBUG else 'True') == 'True'
+SENDGRID_TIMEOUT = int(os.getenv('SENDGRID_TIMEOUT', '10'))
+EMAIL_SMTP_TIMEOUT = int(os.getenv('EMAIL_SMTP_TIMEOUT', '10'))
 
 # Default sender email address
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@healthlink.local')

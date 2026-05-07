@@ -2,7 +2,7 @@
 """Test the improved triage flow"""
 from triage.llm_triage_service import LLMTriageService
 
-s = LLMTriageService(use_openai=False)
+s = LLMTriageService()
 msgs = ['I have a stomach problem', 'Nausea and vomiting for 2 days', 'Pretty bad honestly']
 
 print("Testing improved conversation flow:")

@@ -4,6 +4,7 @@ from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 import logging
+import sys
 
 from appointments.models import Appointment
 from messaging.models import Message, VideoCall, Conversation
@@ -17,6 +18,14 @@ logger = logging.getLogger(__name__)
 def should_send_email():
     """Check if email notifications are enabled"""
     return getattr(settings, 'SEND_EMAIL_NOTIFICATIONS', True)
+
+
+def should_send_email_async():
+    """Use async email delivery in production, but keep test runs synchronous."""
+    if settings.DEBUG:
+        return False
+
+    return not any(arg == 'test' or arg.endswith(' test') or ' test ' in arg for arg in sys.argv)
 
 
 
@@ -52,14 +61,14 @@ def appointment_post_save(sender, instance, created, **kwargs):
         if created:
             try:
                 subject = f"Appointment requested with Dr. {doctor.get_full_name()}"
-                send_appointment_email(patient.email, subject, 'emails/appointment_created.html', context)
+                send_appointment_email(patient.email, subject, 'emails/appointment_created.html', context, async_send=should_send_email_async())
             except Exception as e:
                 logger.warning('Failed to send patient appointment email: %s', e)
             
             try:
                 # Notify doctor
                 subject_doc = f"New appointment request from {patient.get_full_name()}"
-                send_appointment_email(doctor.email, subject_doc, 'emails/appointment_created_doctor.html', context)
+                send_appointment_email(doctor.email, subject_doc, 'emails/appointment_created_doctor.html', context, async_send=should_send_email_async())
             except Exception as e:
                 logger.warning('Failed to send doctor appointment email: %s', e)
         else:
@@ -69,24 +78,24 @@ def appointment_post_save(sender, instance, created, **kwargs):
                 if instance.status == 'confirmed':
                     try:
                         subject = f"Your appointment on {instance.appointment_date:%d/%m/%Y %I:%M %p} is confirmed"
-                        send_appointment_email(patient.email, subject, 'emails/appointment_confirmed.html', context)
+                        send_appointment_email(patient.email, subject, 'emails/appointment_confirmed.html', context, async_send=should_send_email_async())
                     except Exception as e:
                         logger.warning('Failed to send patient confirmation email: %s', e)
                     
                     try:
-                        send_appointment_email(doctor.email, f"Appointment confirmed with {patient.get_full_name()}", 'emails/appointment_confirmed_doctor.html', context)
+                        send_appointment_email(doctor.email, f"Appointment confirmed with {patient.get_full_name()}", 'emails/appointment_confirmed_doctor.html', context, async_send=should_send_email_async())
                     except Exception as e:
                         logger.warning('Failed to send doctor confirmation email: %s', e)
                         
                 elif instance.status == 'cancelled':
                     subj = f"Appointment cancelled: {instance.appointment_date:%d/%m/%Y %I:%M %p}"
                     try:
-                        send_appointment_email(patient.email, subj, 'emails/appointment_cancelled.html', context)
+                        send_appointment_email(patient.email, subj, 'emails/appointment_cancelled.html', context, async_send=should_send_email_async())
                     except Exception as e:
                         logger.warning('Failed to send patient cancellation email: %s', e)
                     
                     try:
-                        send_appointment_email(doctor.email, subj, 'emails/appointment_cancelled_doctor.html', context)
+                        send_appointment_email(doctor.email, subj, 'emails/appointment_cancelled_doctor.html', context, async_send=should_send_email_async())
                     except Exception as e:
                         logger.warning('Failed to send doctor cancellation email: %s', e)
     except Exception as e:
@@ -113,7 +122,7 @@ def message_post_save(sender, instance, created, **kwargs):
             'recipient': recipient,
         }
         subject = f"New message from {instance.sender.get_full_name()}"
-        send_message_email(recipient.email, subject, 'emails/new_message.html', context)
+        send_message_email(recipient.email, subject, 'emails/new_message.html', context, async_send=should_send_email_async())
     except Exception:
         logger.exception('Failed to send new message email')
 
@@ -144,7 +153,7 @@ def videocall_post_save(sender, instance, created, **kwargs):
             # New call initiated -> notify receiver
             try:
                 subject = f"Incoming video consultation from {caller.get_full_name()}"
-                send_call_email(receiver.email, subject, 'emails/incoming_call.html', context)
+                send_call_email(receiver.email, subject, 'emails/incoming_call.html', context, async_send=should_send_email_async())
             except Exception as e:
                 logger.warning('Failed to send incoming call email: %s', e)
         else:
@@ -153,23 +162,23 @@ def videocall_post_save(sender, instance, created, **kwargs):
                 if instance.status == 'ongoing':
                     # Call answered
                     try:
-                        send_call_email(caller.email, f"Call answered by {receiver.get_full_name()}", 'emails/call_answered.html', context)
+                        send_call_email(caller.email, f"Call answered by {receiver.get_full_name()}", 'emails/call_answered.html', context, async_send=should_send_email_async())
                     except Exception as e:
                         logger.warning('Failed to send call answered email to caller: %s', e)
                     
                     try:
-                        send_call_email(receiver.email, f"You answered a call from {caller.get_full_name()}", 'emails/call_answered.html', context)
+                        send_call_email(receiver.email, f"You answered a call from {caller.get_full_name()}", 'emails/call_answered.html', context, async_send=should_send_email_async())
                     except Exception as e:
                         logger.warning('Failed to send call answered email to receiver: %s', e)
                         
                 elif instance.status in ('ended', 'missed', 'declined'):
                     try:
-                        send_call_email(caller.email, f"Call {instance.status}", 'emails/call_ended.html', context)
+                        send_call_email(caller.email, f"Call {instance.status}", 'emails/call_ended.html', context, async_send=should_send_email_async())
                     except Exception as e:
                         logger.warning('Failed to send call %s email to caller: %s', instance.status, e)
                     
                     try:
-                        send_call_email(receiver.email, f"Call {instance.status}", 'emails/call_ended.html', context)
+                        send_call_email(receiver.email, f"Call {instance.status}", 'emails/call_ended.html', context, async_send=should_send_email_async())
                     except Exception as e:
                         logger.warning('Failed to send call %s email to receiver: %s', instance.status, e)
     except Exception as e:

@@ -89,13 +89,14 @@ DEFAULT_FROM_EMAIL=your-email@gmail.com
 
 **SendGrid**:
 ```bash
-EMAIL_HOST=smtp.sendgrid.net
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_HOST_USER=apikey
-EMAIL_HOST_PASSWORD=SG.your-sendgrid-api-key
+EMAIL_PROVIDER=sendgrid
+EMAIL_SEND_ASYNC=True
+SENDGRID_API_KEY=SG.your-sendgrid-api-key
+SENDGRID_TIMEOUT=10
 DEFAULT_FROM_EMAIL=noreply@your-domain.com
 ```
+
+The app uses SendGrid's HTTPS API when `EMAIL_PROVIDER=sendgrid` and `SENDGRID_API_KEY` is set. That avoids SMTP reachability problems and keeps email work off the request thread when `EMAIL_SEND_ASYNC=True`.
 
 **AWS SES**:
 ```bash
