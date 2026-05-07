@@ -176,7 +176,7 @@ EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False') == 'True'
 SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
 EMAIL_PROVIDER = os.getenv(
     'EMAIL_PROVIDER',
-    'sendgrid' if (not DEBUG and SENDGRID_API_KEY) else 'django',
+    'sendgrid' if not DEBUG else 'django',
 ).strip().lower()
 EMAIL_SEND_ASYNC = os.getenv('EMAIL_SEND_ASYNC', 'False' if DEBUG else 'True') == 'True'
 SENDGRID_TIMEOUT = int(os.getenv('SENDGRID_TIMEOUT', '10'))

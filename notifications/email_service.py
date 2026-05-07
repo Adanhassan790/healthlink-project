@@ -58,8 +58,9 @@ def _send_via_django(subject, recipients, text_body, html_body, from_email):
 def _send_via_sendgrid(subject, recipients, text_body, html_body, from_email):
     api_key = getattr(settings, 'SENDGRID_API_KEY', '')
     if not api_key:
-        logger.warning('SENDGRID_API_KEY is missing; falling back to Django email backend')
-        return _send_via_django(subject, recipients, text_body, html_body, from_email)
+        message = 'SENDGRID_API_KEY is missing; configure it in the runtime environment'
+        logger.error(message)
+        return False, message
 
     payload = {
         'personalizations': [{'to': [{'email': recipient} for recipient in recipients]}],
