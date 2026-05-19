@@ -19,6 +19,7 @@ from django.utils.html import strip_tags
 logger = logging.getLogger(__name__)
 _EMAIL_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix='healthlink-email')
 _SENDGRID_API_URL = 'https://api.sendgrid.com/v3/mail/send'
+_BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email'
 
 
 def _default_from_email():
@@ -27,7 +28,24 @@ def _default_from_email():
 
 def _email_provider():
     provider = getattr(settings, 'EMAIL_PROVIDER', 'django')
-    return str(provider).strip().lower()
+    provider = str(provider).strip().lower()
+    
+    brevo_key = str(getattr(settings, 'BREVO_API_KEY', '') or '').strip()
+    sendgrid_key = str(getattr(settings, 'SENDGRID_API_KEY', '') or '').strip()
+    logger.info(f'DEBUG: EMAIL_PROVIDER={provider}, has BREVO_KEY={bool(brevo_key)}, has SG_KEY={bool(sendgrid_key)}')
+
+    if provider in ('auto', 'default', ''):
+        if sendgrid_key.startswith('SG.'):
+            logger.info('DEBUG: Auto-detected SendGrid')
+            return 'sendgrid'
+        if brevo_key or sendgrid_key.startswith('xkeysib-') or sendgrid_key.startswith('xsmtpsib-'):
+            logger.info('DEBUG: Auto-detected Brevo')
+            return 'brevo'
+        logger.info('DEBUG: Auto-detected Django (no keys found)')
+        return 'django'
+
+    logger.info(f'DEBUG: Using explicit provider: {provider}')
+    return provider
 
 
 def _render_email_body(text_body=None, html_template=None, context=None):
@@ -62,6 +80,9 @@ def _send_via_sendgrid(subject, recipients, text_body, html_body, from_email):
         logger.error(message)
         return False, message
 
+    if str(api_key).strip().startswith(('xkeysib-', 'xsmtpsib-')):
+        return _send_via_brevo(subject, recipients, text_body, html_body, from_email)
+
     payload = {
         'personalizations': [{'to': [{'email': recipient} for recipient in recipients]}],
         'from': {'email': from_email},
@@ -93,9 +114,54 @@ def _send_via_sendgrid(subject, recipients, text_body, html_body, from_email):
     return True, None
 
 
+def _send_via_brevo(subject, recipients, text_body, html_body, from_email):
+    api_key = str(getattr(settings, 'BREVO_API_KEY', '') or '').strip()
+    if not api_key:
+        # Backward compatibility: some setups incorrectly stored a Brevo key in SENDGRID_API_KEY.
+        api_key = str(getattr(settings, 'SENDGRID_API_KEY', '') or '').strip()
+
+    if not api_key:
+        message = 'BREVO_API_KEY is missing; configure it in the runtime environment'
+        logger.error(message)
+        return False, message
+
+    payload = {
+        'sender': {'email': from_email},
+        'to': [{'email': recipient} for recipient in recipients],
+        'subject': subject,
+    }
+
+    if html_body:
+        payload['htmlContent'] = html_body
+    if text_body:
+        payload['textContent'] = text_body
+    if not html_body and not text_body:
+        payload['textContent'] = ''
+
+    response = requests.post(
+        _BREVO_API_URL,
+        headers={
+            'api-key': api_key,
+            'Content-Type': 'application/json',
+            'accept': 'application/json',
+        },
+        json=payload,
+        timeout=getattr(settings, 'SENDGRID_TIMEOUT', 10),
+    )
+
+    if response.status_code not in (200, 201, 202):
+        raise RuntimeError(f'Brevo API error {response.status_code}: {response.text}')
+
+    logger.info('Email sent via Brevo to %s subject=%s', recipients, subject)
+    return True, None
+
+
 def _send_sync(subject, recipients, text_body, html_body, from_email):
-    if _email_provider() == 'sendgrid':
+    provider = _email_provider()
+    if provider == 'sendgrid':
         return _send_via_sendgrid(subject, recipients, text_body, html_body, from_email)
+    if provider == 'brevo':
+        return _send_via_brevo(subject, recipients, text_body, html_body, from_email)
     return _send_via_django(subject, recipients, text_body, html_body, from_email)
 
 
