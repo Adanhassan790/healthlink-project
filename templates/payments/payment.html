@@ -28,24 +28,10 @@
                     </div>
 
                     <!-- Payment Options Tabs -->
-                    <ul class="nav nav-tabs mb-4" id="paymentTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="real-tab" data-bs-toggle="tab" 
-                                    data-bs-target="#real-payment" type="button" role="tab">
-                                💳 Real M-Pesa
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="simulate-tab" data-bs-toggle="tab" 
-                                    data-bs-target="#simulate-payment" type="button" role="tab">
-                                🧪 Test Payment
-                            </button>
-                        </li>
-                    </ul>
 
                     <div class="tab-content" id="paymentTabsContent">
-                        <!-- Real M-Pesa Payment -->
-                        <div class="tab-pane fade show active" id="real-payment" role="tabpanel">
+                        <!-- M-Pesa Payment -->
+                        <div id="real-payment" role="tabpanel">
                             <form method="post" id="real-payment-form">
                                 {% csrf_token %}
                                 <div class="mb-3">
@@ -65,8 +51,8 @@
                                 </div>
 
                                 <div class="d-grid">
-                                    <button type="submit" class="btn btn-primary btn-lg" id="real-pay-button">
-                                        Pay with Real M-Pesa
+                                    <button type="submit" class="btn btn-success btn-lg" id="real-pay-button">
+                                        💚 Pay with M-Pesa
                                     </button>
                                 </div>
                             </form>
@@ -80,38 +66,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Simulated Payment -->
-                        <div class="tab-pane fade" id="simulate-payment" role="tabpanel">
-                            <div class="alert alert-warning">
-                                <strong>Development Mode:</strong> This simulates payment for testing with any phone number.
-                            </div>
-                            
-                            <form method="post" action="{% url 'payments:simulate_payment' appointment.id %}">
-                                {% csrf_token %}
-                                <div class="mb-3">
-                                    <label for="simulate_phone" class="form-label">
-                                        <strong>Any Phone Number (Simulation)</strong>
-                                    </label>
-                                    <input type="tel" 
-                                           class="form-control form-control-lg" 
-                                           id="simulate_phone" 
-                                           name="phone_number"
-                                           placeholder="e.g., 0712345678"
-                                           required
-                                           pattern="[0-9]{10,12}">
-                                    <div class="form-text">
-                                        Works with any phone number for testing
-                                    </div>
-                                </div>
-
-                                <div class="d-grid">
-                                    <button type="submit" class="btn btn-success btn-lg">
-                                        🧪 Test Payment (Simulation)
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -120,27 +74,13 @@
             <div class="card mt-4">
                 <div class="card-body">
                     <h6>📱 Payment Instructions</h6>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h7 class="text-primary">Real M-Pesa:</h7>
-                            <ol class="small">
-                                <li>Use test number: <strong>254708374149</strong></li>
-                                <li>Click "Pay with Real M-Pesa"</li>
-                                <li>Check phone for M-Pesa prompt</li>
-                                <li>Enter PIN: <strong>174379</strong></li>
-                                <li>Wait for confirmation</li>
-                            </ol>
-                        </div>
-                        <div class="col-md-6">
-                            <h7 class="text-success">Test Payment:</h7>
-                            <ol class="small">
-                                <li>Use any phone number</li>
-                                <li>Click "Test Payment"</li>
-                                <li>Instant confirmation</li>
-                                <li>Perfect for development</li>
-                            </ol>
-                        </div>
-                    </div>
+                    <ol class="small">
+                        <li>Enter your M-Pesa phone number</li>
+                        <li>Click "Pay with M-Pesa"</li>
+                        <li>Check your phone for M-Pesa prompt</li>
+                        <li>Enter your M-Pesa PIN</li>
+                        <li>Wait for payment confirmation</li>
+                    </ol>
                 </div>
             </div>
         </div>

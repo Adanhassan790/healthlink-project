@@ -5,6 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django.db.models import Sum
 import json
+from django.conf import settings
 from .models import MpesaTransaction, Appointment
 from .mpesa_service import initiate_stk_push
 
@@ -47,6 +48,7 @@ def payment_page(request, appointment_id):
         'appointment': appointment,
         'doctor': appointment.doctor.doctorprofile,
         'amount': appointment.doctor.doctorprofile.consultation_fee,
+        'ENABLE_PAYMENT_SIMULATION': getattr(settings, 'ENABLE_PAYMENT_SIMULATION', settings.DEBUG),
     }
     
     return render(request, 'payments/payment.html', context)
@@ -129,7 +131,7 @@ def mpesa_callback(request):
             transaction.result_code = result_code
             transaction.result_description = result_desc
             
-            if result_code == 0:
+            if str(result_code) == '0':
                 # Payment successful
                 transaction.status = 'success'
                 print("✅ Payment SUCCESSFUL!")
@@ -197,13 +199,15 @@ def payment_status(request, transaction_id):
         'result_description': transaction.result_description
     })
 
-import random
-from django.utils import timezone
 
 # ADD THIS FUNCTION TO YOUR VIEWS.PY
 @login_required
 def simulate_payment(request, appointment_id):
     """Simulate payment for development/testing with any phone number"""
+    if not getattr(settings, 'ENABLE_PAYMENT_SIMULATION', settings.DEBUG):
+        messages.error(request, 'Payment simulation is disabled in this environment.')
+        return redirect('payments:payment_page', appointment_id=appointment_id)
+
     if request.method == 'POST':
         appointment = get_object_or_404(Appointment, id=appointment_id, patient=request.user)
         
