@@ -4,6 +4,7 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django.db.models import Sum
+from django.utils import timezone
 import json
 from django.conf import settings
 from .models import MpesaTransaction, Appointment
