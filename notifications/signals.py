@@ -61,14 +61,14 @@ def appointment_post_save(sender, instance, created, **kwargs):
         if created:
             try:
                 subject = f"Appointment requested with Dr. {doctor.get_full_name()}"
-                send_appointment_email(patient.email, subject, 'emails/appointment_created.html', context, async_send=should_send_email_async())
+                send_appointment_email(patient.email, subject, 'emails/appointment_created.html', context, async_send=False)
             except Exception as e:
                 logger.warning('Failed to send patient appointment email: %s', e)
             
             try:
                 # Notify doctor
                 subject_doc = f"New appointment request from {patient.get_full_name()}"
-                send_appointment_email(doctor.email, subject_doc, 'emails/appointment_created_doctor.html', context, async_send=should_send_email_async())
+                send_appointment_email(doctor.email, subject_doc, 'emails/appointment_created_doctor.html', context, async_send=False)
             except Exception as e:
                 logger.warning('Failed to send doctor appointment email: %s', e)
         else:
@@ -78,24 +78,24 @@ def appointment_post_save(sender, instance, created, **kwargs):
                 if instance.status == 'confirmed':
                     try:
                         subject = f"Your appointment on {instance.appointment_date:%d/%m/%Y %I:%M %p} is confirmed"
-                        send_appointment_email(patient.email, subject, 'emails/appointment_confirmed.html', context, async_send=should_send_email_async())
+                        send_appointment_email(patient.email, subject, 'emails/appointment_confirmed.html', context, async_send=False)
                     except Exception as e:
                         logger.warning('Failed to send patient confirmation email: %s', e)
                     
                     try:
-                        send_appointment_email(doctor.email, f"Appointment confirmed with {patient.get_full_name()}", 'emails/appointment_confirmed_doctor.html', context, async_send=should_send_email_async())
+                        send_appointment_email(doctor.email, f"Appointment confirmed with {patient.get_full_name()}", 'emails/appointment_confirmed_doctor.html', context, async_send=False)
                     except Exception as e:
                         logger.warning('Failed to send doctor confirmation email: %s', e)
                         
                 elif instance.status == 'cancelled':
                     subj = f"Appointment cancelled: {instance.appointment_date:%d/%m/%Y %I:%M %p}"
                     try:
-                        send_appointment_email(patient.email, subj, 'emails/appointment_cancelled.html', context, async_send=should_send_email_async())
+                        send_appointment_email(patient.email, subj, 'emails/appointment_cancelled.html', context, async_send=False)
                     except Exception as e:
                         logger.warning('Failed to send patient cancellation email: %s', e)
                     
                     try:
-                        send_appointment_email(doctor.email, subj, 'emails/appointment_cancelled_doctor.html', context, async_send=should_send_email_async())
+                        send_appointment_email(doctor.email, subj, 'emails/appointment_cancelled_doctor.html', context, async_send=False)
                     except Exception as e:
                         logger.warning('Failed to send doctor cancellation email: %s', e)
     except Exception as e:

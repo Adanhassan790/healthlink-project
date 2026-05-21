@@ -1,18 +1,9 @@
 <html>
   <body>
     <p>Hi {{ patient.get_full_name }},</p>
-    <p>Your appointment request with Dr. {{ doctor.get_full_name }} on {{ appointment.appointment_date }} has been received.</p>
-    <p>Status: {{ appointment.status }}</p>
-    <p>Please login to your HealthLink account to confirm or pay.</p>
+    <p>Your appointment request with Dr. {{ doctor.get_full_name }} on {{ appointment.appointment_date|date:"d/m/Y H:i" }} has been received.</p>
+    <p>Current status: {{ appointment.get_status_display }}</p>
+    <p>Please visit your HealthLink dashboard to complete payment and view the appointment details.</p>
     <p>Thanks,<br/>HealthLink</p>
   </body>
-</html>
-<html>
-<body>
-  <p>Hi {{ patient.get_full_name }},</p>
-  <p>Your appointment request with Dr. {{ doctor.get_full_name }} on {{ appointment.appointment_date|date:"d/m/Y H:i" }} has been received.</p>
-  <p>Current status: {{ appointment.get_status_display }}</p>
-  <p>Visit your dashboard to confirm payment and view details.</p>
-  <p>— HealthLink</p>
-</body>
 </html>
