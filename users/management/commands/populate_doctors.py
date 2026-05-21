@@ -79,7 +79,7 @@ class Command(BaseCommand):
             
             # Check if user already exists
             if CustomUser.objects.filter(username=username).exists():
-                self.stdout.write(self.style.WARNING(f'  ⊘ Skipped {username} (already exists)'))
+                self.stdout.write(self.style.WARNING(f'  [SKIP] Skipped {username} (already exists)'))
                 skipped_count += 1
                 continue
             

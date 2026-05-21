@@ -37,29 +37,29 @@ Email notifications are automatically sent for:
 
 ### Environment Variables
 
-Add to `.env` file:
+Add the relevant values to your `.env` file or Railway service variables:
 
 ```bash
-# Email Backend (auto-selected based on DEBUG, but can override)
-EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+# Email provider selection
+EMAIL_PROVIDER=brevo
 
-# SMTP Configuration
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_HOST_USER=your-email@gmail.com
-EMAIL_HOST_PASSWORD=your-app-specific-password
+# Brevo
+BREVO_API_KEY=xkeysib-your-brevo-api-key
 
-# Default sender
-DEFAULT_FROM_EMAIL=noreply@healthlink.com
+# SendGrid (alternative provider)
+SENDGRID_API_KEY=SG.your-sendgrid-api-key
 
-# Global notification toggle (optional, default: True)
+# Shared settings
+DEFAULT_FROM_EMAIL=qonqona@gmail.com
+EMAIL_SEND_ASYNC=True
 SEND_EMAIL_NOTIFICATIONS=True
+SENDGRID_TIMEOUT=10
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 ```
 
 ### Development Setup
 
-For development, use the **console backend** (prints emails to stdout):
+For development, either use the **console backend** to print messages locally or keep Brevo enabled with a valid API key:
 
 ```bash
 # .env
@@ -67,46 +67,41 @@ DEBUG=True
 EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
 ```
 
-Emails will print to your Django development server console.
+Emails will print to your Django development server console when the console backend is active.
 
 ### Production Setup
 
-For production, configure SMTP credentials:
+**Brevo**
 
-**Gmail**:
-1. Enable 2-step verification: https://myaccount.google.com/security
-2. Generate App Password: https://myaccount.google.com/apppasswords
-3. Use the 16-character app password as `EMAIL_HOST_PASSWORD`
+Use Brevo's HTTPS API for transactional email:
 
 ```bash
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_HOST_USER=your-email@gmail.com
-EMAIL_HOST_PASSWORD=your-16-char-app-password
-DEFAULT_FROM_EMAIL=your-email@gmail.com
+EMAIL_PROVIDER=brevo
+BREVO_API_KEY=xkeysib-your-brevo-api-key
+DEFAULT_FROM_EMAIL=qonqona@gmail.com
+EMAIL_SEND_ASYNC=True
+SEND_EMAIL_NOTIFICATIONS=True
 ```
 
-**SendGrid**:
+Brevo works without Gmail app passwords or 2-step verification. The sender email must be verified in Brevo.
+
+**SendGrid**
+
+Use SendGrid's HTTPS API as the alternative provider:
+
 ```bash
 EMAIL_PROVIDER=sendgrid
-EMAIL_SEND_ASYNC=True
 SENDGRID_API_KEY=SG.your-sendgrid-api-key
-SENDGRID_TIMEOUT=10
 DEFAULT_FROM_EMAIL=noreply@your-domain.com
+EMAIL_SEND_ASYNC=True
+SEND_EMAIL_NOTIFICATIONS=True
 ```
 
 The app uses SendGrid's HTTPS API when `EMAIL_PROVIDER=sendgrid` and `SENDGRID_API_KEY` is set. That avoids SMTP reachability problems and keeps email work off the request thread when `EMAIL_SEND_ASYNC=True`.
 
-**AWS SES**:
-```bash
-EMAIL_HOST=email-smtp.region.amazonaws.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_HOST_USER=your-ses-username
-EMAIL_HOST_PASSWORD=your-ses-password
-DEFAULT_FROM_EMAIL=verified-sender@your-domain.com
-```
+**Fallback SMTP**
+
+SMTP remains available for environments that explicitly rely on `EMAIL_BACKEND` and SMTP settings, but it is not the preferred path for Railway deployment.
 
 ## Automatic Notifications
 
@@ -151,6 +146,16 @@ python manage.py send_appointment_reminders --dry-run
 python manage.py send_appointment_reminders --lookback=120
 ```
 
+### End-to-End Notification Test
+
+Use the dedicated management command to create test users, create an appointment, and send a direct test email:
+
+```bash
+python manage.py run_notification_test
+```
+
+This is the quickest way to verify appointment, doctor, and direct email delivery during local development or after a Railway deploy.
+
 ### Scheduling with Cron
 
 Add to crontab to run every 15 minutes:
@@ -187,10 +192,10 @@ Tests use the in-memory email backend and verify:
 
 ### Manual Testing
 
-1. Set `EMAIL_BACKEND` to console backend in `.env`
+1. Set `EMAIL_BACKEND` to console backend in `.env` if you want printed output
 2. Restart Django development server
-3. Perform actions that trigger emails (create appointment, send message, etc.)
-4. Check Django console output for email content
+3. Run `python manage.py run_notification_test`
+4. Check Django console output for email content or verify delivery in the provider dashboard
 
 ### Example Test Scenario
 

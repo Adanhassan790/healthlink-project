@@ -1,7 +1,7 @@
 # HealthLink - Comprehensive System Documentation
 
-**Version:** 1.0  
-**Date:** April 28, 2026  
+**Version:** 1.1  
+**Date:** May 20, 2026  
 **Status:** Production Ready  
 **Project:** AI-Powered Telemedicine Platform
 
@@ -13,9 +13,9 @@ HealthLink is an intelligent healthcare platform that uses AI-powered triage to 
 
 - **AI-Powered Triage**: Analyzes patient symptoms and recommends suitable specialists
 - **Mental Health Crisis Detection**: Immediate crisis resources for patients in distress
-- **Secure Video Consultations**: End-to-end encrypted doctor-patient interactions
+- **Secure Video Consultations**: ZegoCloud-powered doctor-patient interactions
 - **Payment Integration**: M-Pesa for seamless healthcare payments
-- **Real-time Notifications**: SMS and in-app alerts for appointments and consultations
+- **Real-time Notifications**: Email, SMS, and in-app alerts for appointments and consultations
 
 ---
 
@@ -61,14 +61,14 @@ HealthLink is an intelligent healthcare platform that uses AI-powered triage to 
    - Invoice management
 
 6. **Messaging Module** (`messaging/`)
-   - Vonage OpenTok integration for video calls
+   - ZegoCloud integration for video calls
    - In-app messaging system
    - Real-time communication
 
 7. **Notifications Module** (`notifications/`)
+   - Email notifications via Brevo or SendGrid HTTP APIs
    - SMS notifications via Vonage
-   - Email notifications
-   - Push notifications
+   - Push notifications and in-app notification helpers
 
 ---
 
@@ -122,7 +122,7 @@ When crisis detected:
 - Secure password hashing (PBKDF2)
 
 **Video Conferencing:**
-- Powered by Vonage OpenTok
+- Powered by ZegoCloud
 - Real-time HD video/audio
 - Screen sharing capabilities
 - Recording options (with consent)
@@ -151,6 +151,12 @@ When crisis detected:
 - Consultation start notifications
 - Payment confirmations
 - Doctor availability updates
+
+**Email Notifications:**
+- Appointment created, confirmed, cancelled, and reminder emails
+- New message notifications
+- Incoming, answered, and ended call notifications
+- Provider support for Brevo and SendGrid via HTTPS APIs
 
 **In-App Notifications:**
 - Real-time alerts
@@ -293,12 +299,30 @@ DEBUG=False
 ALLOWED_HOSTS=web-production-b2b55.up.railway.app
 DATABASE_URL=postgresql://...
 GROQ_API_KEY=gsk_...
-VONAGE_API_KEY=...
-VONAGE_API_SECRET=...
+EMAIL_PROVIDER=brevo
+BREVO_API_KEY=xkeysib_...
+DEFAULT_FROM_EMAIL=qonqona@gmail.com
+EMAIL_SEND_ASYNC=True
+SEND_EMAIL_NOTIFICATIONS=True
+SENDGRID_API_KEY=
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 MPESA_CONSUMER_KEY=...
 MPESA_CONSUMER_SECRET=...
 SECRET_KEY=...
+ZEGOCLOUD_APP_ID=...
+ZEGOCLOUD_SERVER_SECRET=...
 ```
+
+**Email Provider Notes:**
+- `EMAIL_PROVIDER=brevo` routes email through Brevo's HTTPS API.
+- `EMAIL_PROVIDER=sendgrid` routes email through SendGrid's HTTPS API.
+- `EMAIL_PROVIDER=auto` uses the configured key format to choose Brevo or SendGrid.
+- `EMAIL_SEND_ASYNC=True` sends notifications in the background.
+- `SEND_EMAIL_NOTIFICATIONS=True` keeps appointment/message/call notifications enabled.
+
+**Payment Testing Notes:**
+- `ENABLE_PAYMENT_SIMULATION=False` in production so only real M-Pesa payments are accepted.
+- `ENABLE_PAYMENT_SIMULATION=True` can be used locally for demo flows.
 
 **Deployment Process:**
 1. Push code to main branch
@@ -317,9 +341,33 @@ SECRET_KEY=...
 - Health check endpoint
 - Proper signal handling for graceful shutdown
 
+### Email and Video Provider Setup
+
+**Brevo Production Email:**
+- Verify the sender email in Brevo before sending from Railway.
+- Use `BREVO_API_KEY` in Railway environment variables.
+- If Railway logs show `BREVO_API_KEY is missing`, the variable is not available to the running service and must be re-saved and redeployed.
+
+**SendGrid Production Email:**
+- Set `SENDGRID_API_KEY` to an `SG.` key and `EMAIL_PROVIDER=sendgrid`.
+- SendGrid is supported through HTTPS API calls, not SMTP.
+
+**ZegoCloud Video Calls:**
+- Add `ZEGOCLOUD_APP_ID` and `ZEGOCLOUD_SERVER_SECRET` to Railway and local `.env`.
+- The local SDK can be served from `static/js/zegocloud/` if CDN loading fails.
+
 ---
 
 ## Recent Improvements & Fixes
+
+### Email Delivery Migration (Latest)
+**Status:** Production Ready
+
+- Replaced SMTP-only email handling with provider-based email delivery.
+- Added Brevo HTTPS API support for transactional notifications.
+- Kept SendGrid HTTPS API support as an alternative provider.
+- Added auto-detection for provider selection when `EMAIL_PROVIDER=auto`.
+- Added the `run_notification_test` management command for end-to-end verification.
 
 ### Crisis Response System (Latest)
 **Status:** Production Ready
@@ -483,6 +531,11 @@ SECRET_KEY=...
 - Root Cause: API temporarily unavailable
 - Solution: Automatic fallback to rule-based system
 - Result: System continues functioning without API
+
+**Issue: "Email notifications still use SMTP in Railway"**
+- Root Cause: Railway service did not have `BREVO_API_KEY` available at runtime
+- Solution: Re-save the Railway variable on the `web` service, restart the deployment, and confirm logs show `has BREVO_KEY=True`
+- Result: Notifications are sent through Brevo's HTTPS API instead of SMTP
 
 ---
 

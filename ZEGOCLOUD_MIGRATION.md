@@ -3,6 +3,8 @@
 ## Overview
 Successfully migrated from Vonage OpenTok video conferencing to Zegocloud. Zegocloud is easier to set up and doesn't require complex API management.
 
+If you are deploying to Railway, add `ZEGOCLOUD_APP_ID` and `ZEGOCLOUD_SERVER_SECRET` as environment variables in the `web` service and redeploy after saving them.
+
 ## What Changed
 
 ### Backend Changes
@@ -41,6 +43,8 @@ ZEGOCLOUD_APP_ID=your_actual_app_id_here
 ZEGOCLOUD_SERVER_SECRET=your_actual_server_secret_here
 ```
 
+For Railway, use the same variable names in the service configuration instead of committing secrets to the repo.
+
 **Example** (your actual values will be different):
 ```env
 ZEGOCLOUD_APP_ID=1234567890
@@ -75,6 +79,10 @@ python manage.py runserver
 2. Log in as both doctor and patient
 3. Try starting a video call
 4. Check Django logs for any Zegocloud errors
+
+### Local SDK Notes
+
+If CDN loading fails in your environment, use the locally hosted SDK under `static/js/zegocloud/` and run `python manage.py collectstatic --noinput` before deploying.
 
 If you see "Zegocloud not configured" error, verify that:
 - `.env` file has correct `ZEGOCLOUD_APP_ID` and `ZEGOCLOUD_SERVER_SECRET`

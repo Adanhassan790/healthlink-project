@@ -156,6 +156,7 @@ MPESA_CONSUMER_SECRET = os.getenv('MPESA_CONSUMER_SECRET', '')
 MPESA_BUSINESS_SHORTCODE = os.getenv('MPESA_BUSINESS_SHORTCODE', '')
 MPESA_PASSKEY = os.getenv('MPESA_PASSKEY', '')
 MPESA_CALLBACK_URL = os.getenv('MPESA_CALLBACK_URL', 'http://localhost:8000/payments/mpesa/callback/')
+ENABLE_PAYMENT_SIMULATION = os.getenv('ENABLE_PAYMENT_SIMULATION', 'True' if DEBUG else 'False') == 'True'
 
 # ============== EMAIL CONFIGURATION ==============
 # Email backend selection based on environment
@@ -174,9 +175,10 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False') == 'True'
 SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
+BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')
 EMAIL_PROVIDER = os.getenv(
     'EMAIL_PROVIDER',
-    'sendgrid' if not DEBUG else 'django',
+    'auto',
 ).strip().lower()
 EMAIL_SEND_ASYNC = os.getenv('EMAIL_SEND_ASYNC', 'False' if DEBUG else 'True') == 'True'
 SENDGRID_TIMEOUT = int(os.getenv('SENDGRID_TIMEOUT', '10'))

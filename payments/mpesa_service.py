@@ -5,34 +5,45 @@ from django.conf import settings
 from .models import MpesaTransaction
 import json
 
+
+def _mpesa_base_url():
+    env = str(getattr(settings, 'MPESA_ENVIRONMENT', 'sandbox')).strip().lower()
+    if env == 'production':
+        return 'https://api.safaricom.co.ke'
+    return 'https://sandbox.safaricom.co.ke'
+
+
+def _format_phone_number(phone_number):
+    phone_number = str(phone_number or '').strip()
+    if phone_number.startswith('0'):
+        return '254' + phone_number[1:]
+    if phone_number.startswith('+'):
+        return phone_number[1:]
+    return phone_number
+
 def get_mpesa_access_token():
     """Get M-Pesa API access token with detailed debugging"""
     try:
         # Get credentials directly from settings
         consumer_key = getattr(settings, 'MPESA_CONSUMER_KEY', '')
         consumer_secret = getattr(settings, 'MPESA_CONSUMER_SECRET', '')
-        
-        print(f"🔑 Attempting authentication with Consumer Key: {consumer_key}")
-        print(f"🔑 Consumer Secret starts with: {consumer_secret[:10]}...")
-        
-        auth_url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
+
+        if not consumer_key or not consumer_secret:
+            return None
+
+        auth_url = f"{_mpesa_base_url()}/oauth/v1/generate?grant_type=client_credentials"
         
         response = requests.get(auth_url, auth=(consumer_key, consumer_secret), timeout=30)
-        
-        print(f"📡 Auth Response Status: {response.status_code}")
-        print(f"📡 Auth Response Text: {response.text}")
         
         if response.status_code == 200:
             data = response.json()
             access_token = data.get('access_token')
-            print(f"✅ SUCCESS: Access token received: {access_token[:20]}...")
             return access_token
         else:
-            print(f"❌ FAILED: Auth failed with status {response.status_code}")
             return None
             
     except Exception as e:
-        print(f"❌ ERROR in get_mpesa_access_token: {e}")
+        print(f"M-Pesa auth error: {e}")
         return None
 
 def generate_password():
@@ -41,32 +52,24 @@ def generate_password():
         shortcode = getattr(settings, 'MPESA_BUSINESS_SHORTCODE', '174379')
         passkey = getattr(settings, 'MPESA_PASSKEY', '')
         
-        print(f"🔐 Generating password with Shortcode: {shortcode}")
-        print(f"🔐 Passkey starts with: {passkey[:10]}...")
+        if not shortcode or not passkey:
+            return None, None
         
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         data_to_encode = str(shortcode) + passkey + timestamp
         encoded_string = base64.b64encode(data_to_encode.encode()).decode()
         
-        print(f"✅ Password generated successfully with timestamp: {timestamp}")
         return encoded_string, timestamp
         
     except Exception as e:
-        print(f"❌ ERROR in generate_password: {e}")
+        print(f"M-Pesa password generation error: {e}")
         return None, None
 
 def initiate_stk_push(phone_number, amount, appointment, account_reference="HEALTHLINK"):
     """Initiate STK Push to customer's phone"""
     try:
         # Format phone number (2547...)
-        original_phone = phone_number
-        if phone_number.startswith('0'):
-            phone_number = '254' + phone_number[1:]
-        elif phone_number.startswith('+'):
-            phone_number = phone_number[1:]
-        
-        print(f"📱 Phone number formatted: {original_phone} -> {phone_number}")
-        print(f"💰 Amount: {amount}")
+        phone_number = _format_phone_number(phone_number)
         
         # Get access token
         access_token = get_mpesa_access_token()
@@ -81,9 +84,9 @@ def initiate_stk_push(phone_number, amount, appointment, account_reference="HEAL
         # Get configuration from settings
         shortcode = getattr(settings, 'MPESA_BUSINESS_SHORTCODE', '174379')
         callback_url = getattr(settings, 'MPESA_CALLBACK_URL', '')
-        
-        print(f"🔗 Callback URL: {callback_url}")
-        print(f"🏢 Business Shortcode: {shortcode}")
+
+        if not callback_url:
+            return None, "MPESA_CALLBACK_URL is missing"
         
         # Prepare request payload
         payload = {
@@ -100,19 +103,14 @@ def initiate_stk_push(phone_number, amount, appointment, account_reference="HEAL
             "TransactionDesc": f"HealthLink Consultation"
         }
         
-        print(f"📦 STK Push Payload: {json.dumps(payload, indent=2)}")
-        
         # Make API request
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json"
         }
-        
-        stk_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
+
+        stk_url = f"{_mpesa_base_url()}/mpesa/stkpush/v1/processrequest"
         response = requests.post(stk_url, json=payload, headers=headers, timeout=30)
-        
-        print(f"📡 STK Push Response Status: {response.status_code}")
-        print(f"📡 STK Push Response: {response.text}")
         
         response_data = response.json()
         
@@ -128,16 +126,14 @@ def initiate_stk_push(phone_number, amount, appointment, account_reference="HEAL
         )
         
         if response_data.get('ResponseCode') == '0':
-            print("✅ STK Push initiated successfully!")
             return transaction, "STK Push initiated successfully"
         else:
             transaction.status = 'failed'
             transaction.result_description = response_data.get('ResponseDescription', 'Unknown error')
             transaction.save()
             error_msg = response_data.get('ResponseDescription', 'Failed to initiate payment')
-            print(f"❌ STK Push failed: {error_msg}")
             return transaction, error_msg
             
     except Exception as e:
-        print(f"❌ ERROR in initiate_stk_push: {e}")
+        print(f"M-Pesa STK push error: {e}")
         return None, str(e)
