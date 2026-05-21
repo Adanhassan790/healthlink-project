@@ -494,6 +494,7 @@
     
     function updateSymptomsList(symptoms) {
         // Create or update symptoms badge area
+        window.collectedSymptoms = Array.isArray(symptoms) ? symptoms : [];
         let symptomsArea = document.getElementById('collectedSymptoms');
         if (!symptomsArea) {
             symptomsArea = document.createElement('div');
@@ -515,9 +516,6 @@
             <button onclick="bookAppointmentNow()" class="btn" style="background: #10b981; color: white; padding: 0.5rem 1rem; border-radius: 8px; border: none; cursor: pointer;">
                 📅 Book Appointment
             </button>
-            <a href="{% url 'appointments:doctor_list' %}" class="btn" style="background: #3b82f6; color: white; padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none;">
-                🏥 Browse All Doctors
-            </a>
             <button onclick="resetChat()" class="btn" style="background: #6b7280; color: white; padding: 0.5rem 1rem; border-radius: 8px; border: none; cursor: pointer;">
                 🔄 New Assessment
             </button>
@@ -527,9 +525,17 @@
     }
     
     async function bookAppointmentNow() {
-        // Get the recommendation from the last AI message
+        // Get the recommendation and symptoms from the AI chat
         const chatMessages = document.querySelectorAll('.ai-message');
         let specialty = 'General Medicine';
+        let symptoms = [];
+        
+        // Get symptoms from the collected symptoms area
+        const symptomsArea = document.getElementById('collectedSymptoms');
+        if (symptomsArea) {
+            const symptomsText = symptomsArea.textContent;
+            symptoms = symptomsText.replace('Symptoms noted:', '').trim().split('\n').filter(s => s.trim());
+        }
         
         // Try to extract specialty from last message
         if (chatMessages.length > 0) {
@@ -554,7 +560,7 @@
                     'Content-Type': 'application/json',
                     'X-CSRFToken': csrftoken
                 },
-                body: JSON.stringify({ specialty: specialty })
+                body: JSON.stringify({ specialty: specialty, symptoms: symptoms })
             });
             
             const data = await response.json();
@@ -598,6 +604,8 @@
         // Remove symptoms area if exists
         const symptomsArea = document.getElementById('collectedSymptoms');
         if (symptomsArea) symptomsArea.remove();
+        window.collectedSymptoms = [];
+        window.recommendedSpecialty = null;
         
         // Reload page to clear session
         window.location.reload();

@@ -37,16 +37,16 @@
                         <!-- Symptoms -->
                         <div class="mb-4">
                             <label for="symptoms" class="form-label">
-                                <strong>Describe Your Symptoms *</strong>
+                                <strong>{% if from_triage %}Symptoms from AI assessment{% else %}Describe Your Symptoms *{% endif %}</strong>
                             </label>
                             <textarea 
                                 name="symptoms" 
                                 id="symptoms" 
                                 class="form-control" 
                                 rows="4" 
-                                placeholder="Please describe what you're experiencing, how long you've had symptoms, and any other relevant information..."
-                                required>{{ symptoms|default:'' }}</textarea>
-                            <div class="form-text">This information helps the doctor prepare for your consultation.</div>
+                                placeholder="{% if from_triage %}Symptoms captured from your AI assessment{% else %}Please describe what you're experiencing, how long you've had symptoms, and any other relevant information...{% endif %}"
+                                {% if not from_triage %}required{% endif %}>{% if triage_symptoms %}{{ triage_symptoms }}{% else %}{{ symptoms|default:'' }}{% endif %}</textarea>
+                            <div class="form-text">{% if from_triage %}We prefilled the symptoms from your AI chat. You can edit them if needed.{% else %}This information helps the doctor prepare for your consultation.{% endif %}</div>
                         </div>
 
                         <!-- Appointment Date -->

@@ -158,7 +158,9 @@ def book_appointment(request, doctor_id):
                         'doctor': doctor,
                         'symptoms': symptoms,
                         'appointment_date': appointment_date_str,
-                        'appointment_time': appointment_time_str
+                        'appointment_time': appointment_time_str,
+                        'from_triage': request.GET.get('from_triage') == 'true',
+                        'triage_symptoms': request.GET.get('symptoms', '').strip() or symptoms,
                     })
                 
                 # Combine date and time and validate format
@@ -186,7 +188,9 @@ def book_appointment(request, doctor_id):
                         'doctor': doctor,
                         'symptoms': symptoms,
                         'appointment_date': appointment_date_str,
-                        'appointment_time': appointment_time_str
+                        'appointment_time': appointment_time_str,
+                        'from_triage': request.GET.get('from_triage') == 'true',
+                        'triage_symptoms': request.GET.get('symptoms', '').strip() or symptoms,
                     })
                 
                 # Get or create specialty
@@ -226,7 +230,9 @@ def book_appointment(request, doctor_id):
                     messages.error(request, 'Error creating appointment. Please try again.')
                     return render(request, 'appointments/book_appointment.html', {
                         'doctor': doctor,
-                        'available_slots': generate_available_slots(doctor)
+                        'available_slots': generate_available_slots(doctor),
+                        'from_triage': request.GET.get('from_triage') == 'true',
+                        'triage_symptoms': request.GET.get('symptoms', '').strip() or symptoms,
                     })
             
             except Exception as post_error:
@@ -243,10 +249,15 @@ def book_appointment(request, doctor_id):
         except Exception as slot_error:
             logger.warning(f"Error generating slots for doctor {doctor_id}: {str(slot_error)}")
             available_slots = []
+
+        from_triage = request.GET.get('from_triage') == 'true'
+        symptoms = request.GET.get('symptoms', '').strip()
         
         return render(request, 'appointments/book_appointment.html', {
             'doctor': doctor,
-            'available_slots': available_slots
+            'available_slots': available_slots,
+            'from_triage': from_triage,
+            'triage_symptoms': symptoms,
         })
         
     except Exception as e:

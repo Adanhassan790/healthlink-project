@@ -328,32 +328,48 @@ def book_appointment_from_chat(request):
         try:
             data = json.loads(request.body)
             specialty = data.get('specialty', 'General Medicine').strip()
-            
+            symptoms = data.get('symptoms', [])
+
+            if isinstance(symptoms, list):
+                symptoms_text = ', '.join(str(item).strip() for item in symptoms if str(item).strip())
+            else:
+                symptoms_text = str(symptoms).strip()
+
             if not specialty:
                 return JsonResponse({'error': 'Specialty required'}, status=400)
-            
+
             # Find a doctor with this specialty
             from appointments.models import DoctorProfile
-            
+            from urllib.parse import urlencode
+
             doctor_profile = DoctorProfile.objects.filter(
                 specialization__icontains=specialty
             ).select_related('user').first()
-            
+
             if not doctor_profile:
                 # No doctors with exact specialty, return list to choose from
+                params = urlencode({
+                    'specialty': specialty,
+                    'from_triage': 'true',
+                    'symptoms': symptoms_text,
+                })
                 return JsonResponse({
                     'success': False,
                     'message': 'Please select a specific doctor',
-                    'redirect': f"{request.build_absolute_uri('/appointments/doctors/')}?specialty={specialty}"
+                    'redirect': f"{request.build_absolute_uri('/appointments/doctors/')}?{params}"
                 })
-            
-            # Redirect to booking form for the selected doctor
+
+            # Redirect to booking form for the selected doctor with triage context
+            params = urlencode({
+                'from_triage': 'true',
+                'symptoms': symptoms_text,
+            })
             return JsonResponse({
                 'success': True,
                 'message': 'Redirecting to appointment booking...',
-                'redirect': request.build_absolute_uri(f'/appointments/book/{doctor_profile.user_id}/')
+                'redirect': request.build_absolute_uri(f'/appointments/book/{doctor_profile.user_id}/?{params}')
             })
-            
+
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
         except Exception as e:
@@ -362,7 +378,7 @@ def book_appointment_from_chat(request):
                 'error': str(e),
                 'message': 'Error booking appointment. Please try again.'
             }, status=500)
-    
+
     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
