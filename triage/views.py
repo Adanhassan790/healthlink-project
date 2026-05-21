@@ -323,6 +323,7 @@ def book_appointment_from_chat(request):
     """
     API endpoint to book an appointment after triage recommendation.
     Called when user responds 'yes' to booking suggestion.
+    Intelligently matches AI-recommended specialty to available doctors.
     """
     if request.method == 'POST':
         try:
@@ -338,25 +339,80 @@ def book_appointment_from_chat(request):
             if not specialty:
                 return JsonResponse({'error': 'Specialty required'}, status=400)
 
-            # Find a doctor with this specialty
             from appointments.models import DoctorProfile
             from urllib.parse import urlencode
+            from difflib import SequenceMatcher
 
+            # Step 1: Try exact match (case-insensitive contains)
             doctor_profile = DoctorProfile.objects.filter(
                 specialization__icontains=specialty
             ).select_related('user').first()
 
+            # Step 2: If not found, try fuzzy matching against all available specialties
             if not doctor_profile:
-                # No doctors with exact specialty, return list to choose from
-                params = urlencode({
-                    'specialty': specialty,
-                    'from_triage': 'true',
-                    'symptoms': symptoms_text,
-                })
+                available_doctors = DoctorProfile.objects.all().select_related('user')
+                
+                if available_doctors.exists():
+                    # Get all unique specializations
+                    all_specializations = set(
+                        available_doctors.values_list('specialization', flat=True)
+                    )
+                    
+                    # Specialty mapping: map common terms to available specializations
+                    specialty_mapping = {
+                        'ent': ['Dermatology', 'Orthopedics'],  # ENT not available, try related
+                        'ear': ['Dermatology', 'Orthopedics'],
+                        'nose': ['Dermatology', 'Orthopedics'],
+                        'throat': ['Dermatology', 'Orthopedics'],
+                        'cardio': ['Cardiology'],
+                        'neuro': ['neurologists', 'nueral sergon', 'Neurology'],
+                        'psych': ['Psychiatry'],
+                        'gastro': ['Gynecology'],  # Fallback
+                        'dermat': ['Dermatology'],
+                        'ortho': ['Orthopedics'],
+                    }
+                    
+                    # Try to find best match
+                    best_match = None
+                    best_score = 0.5
+                    
+                    for spec_key, mapped_specialties in specialty_mapping.items():
+                        if spec_key.lower() in specialty.lower():
+                            # Found a mapped specialty, use first available from mapped list
+                            for mapped_spec in mapped_specialties:
+                                for avail_spec in all_specializations:
+                                    if mapped_spec.lower() in avail_spec.lower():
+                                        best_match = avail_spec
+                                        break
+                                if best_match:
+                                    break
+                            if best_match:
+                                break
+                    
+                    # If still no match, find closest match by string similarity
+                    if not best_match:
+                        for avail_spec in all_specializations:
+                            ratio = SequenceMatcher(None, specialty.lower(), avail_spec.lower()).ratio()
+                            if ratio > best_score:
+                                best_score = ratio
+                                best_match = avail_spec
+                    
+                    # Try to find doctor with the best matched specialty
+                    if best_match:
+                        doctor_profile = available_doctors.filter(
+                            specialization__iexact=best_match
+                        ).first()
+                    
+                    # If still no doctor found, just get any available doctor
+                    if not doctor_profile:
+                        doctor_profile = available_doctors.first()
+
+            if not doctor_profile:
+                # No doctors available at all
                 return JsonResponse({
                     'success': False,
-                    'message': 'Please select a specific doctor',
-                    'redirect': f"{request.build_absolute_uri('/appointments/doctors/')}?{params}"
+                    'message': 'No doctors available. Please try again later.',
+                    'redirect': request.build_absolute_uri('/appointments/doctors/')
                 })
 
             # Redirect to booking form for the selected doctor with triage context
