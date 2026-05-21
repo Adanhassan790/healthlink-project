@@ -3,7 +3,6 @@ from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from users.models import DoctorProfile
-from triage.models import SavedAssessment
 from appointments.models import Appointment  # ADD THIS
 import logging
 
@@ -37,7 +36,7 @@ def login_view(request):  # ADD THIS FUNCTION
 
 @login_required
 def dashboard(request):
-    """Updated dashboard view with saved assessments and prescriptions"""
+    """Updated dashboard view with appointments and prescriptions"""
     try:
         from prescriptions.models import Prescription
         from notifications.models import Notification
@@ -48,8 +47,6 @@ def dashboard(request):
         
         logger.info(f"Loading dashboard for user {request.user.username}")
         
-        # Get user's saved assessments (for patients only)
-        saved_assessments = []
         prescriptions = []
         upcoming_appointments = []
         recent_notifications = []
@@ -59,7 +56,6 @@ def dashboard(request):
         recent_notifications = Notification.objects.filter(user=request.user, is_read=False)[:5]
         
         if hasattr(request.user, 'user_type') and request.user.user_type == 'patient':
-            saved_assessments = SavedAssessment.objects.filter(user=request.user)[:5]
             prescriptions = Prescription.objects.filter(
                 patient=request.user,
                 status__in=['active', 'dispensed', 'completed']
@@ -120,7 +116,6 @@ def dashboard(request):
                 appointments = Appointment.objects.filter(doctor=request.user).order_by('-appointment_date')
         
         return render(request, 'healthlink/users/dashboard.html', {
-            'saved_assessments': saved_assessments,
             'appointments': appointments,
             'prescriptions': prescriptions,
             'upcoming_appointments': upcoming_appointments,
@@ -132,7 +127,6 @@ def dashboard(request):
         logger.exception(f"Error in dashboard view: {str(e)}")
         return render(request, 'healthlink/users/dashboard.html', {
             'error': 'Error loading dashboard. Please try again.',
-            'saved_assessments': [],
             'appointments': [],
             'prescriptions': [],
             'upcoming_appointments': [],

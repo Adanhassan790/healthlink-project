@@ -429,56 +429,6 @@
         </div>
     </div>
     
-    <!-- Saved Assessments Section (for patients only) - Below appointments -->
-    {% if user.user_type == 'patient' %}
-    <div class="dashboard-section mt-4" id="saved-assessments">
-        <h3>🤖 Saved AI Assessments</h3>
-        
-        {% if saved_assessments %}
-        <div class="assessments-grid">
-            {% for assessment in saved_assessments %}
-            <div class="assessment-card">
-                <div class="assessment-header">
-                    <h5>{{ assessment.predicted_specialty }}</h5>
-                    <span class="confidence-badge">{{ assessment.confidence }}% confidence</span>
-                </div>
-                <div class="assessment-body">
-                    <p><strong>Symptoms:</strong> {{ assessment.symptoms_text|truncatewords:20 }}</p>
-                    <p><strong>Saved:</strong> {{ assessment.created_at|date:"M d, Y" }}</p>
-                    
-                    {% if assessment.explanation %}
-                    <div class="explanation">
-                        <strong>AI Explanation:</strong>
-                        <p>{{ assessment.explanation|truncatewords:30 }}</p>
-                    </div>
-                    {% endif %}
-                    
-                    <div class="assessment-actions">
-                        <a href="{% url 'appointments:doctor_list' %}?specialty={{ assessment.predicted_specialty }}" 
-                           class="btn btn-sm btn-primary">
-                            Book Appointment
-                        </a>
-                        <button onclick="viewAssessmentDetails('{{ assessment.id }}', '{{ assessment.predicted_specialty }}', '{{ assessment.confidence }}', '{{ assessment.symptoms_text }}', '{{ assessment.explanation|default:""|escapejs }}', '{{ assessment.created_at|date:"M d, Y" }}')" 
-                                class="btn btn-sm btn-secondary">
-                            View Details
-                        </button>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="empty-state">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">🤖</div>
-            <h4>No saved assessments yet</h4>
-            <p>Use the AI Symptom Checker and save results to see them here</p>
-            <a href="{% url 'triage:triage' %}" class="btn btn-primary">
-                Try AI Symptom Checker
-            </a>
-        </div>
-        {% endif %}
-    </div>
-    {% endif %}
 </div>
 
 <!-- Appointment Details Modal -->
